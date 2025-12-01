@@ -1,117 +1,100 @@
-
+// src/app/(auth)/login/page.tsx
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  // State to manage password visibility toggle
-  const [showPassword, setShowPassword] = useState(false);
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
   return (
-    // Main Container: Uses CSS grid to create the 50/50 split on desktop, stacking on mobile.
-    <div className="w-full min-h-screen grid grid-cols-1 md:grid-cols-2">
-      {/* LEFT SIDE: Simplified to just a colored background */}
-      <div className="bg-[#0A1D56] min-h-[150px] md:min-h-screen">
-        {/* The images (logo and illustration) have been removed from here */}
+    // Main Container: Overall light green background
+    <div className="w-full min-h-screen grid grid-cols-1 md:grid-cols-2 bg-[#E8F3E8]">
+
+      {/* LEFT SIDE: Branding Text */}
+      <div className="hidden md:flex flex-col justify-center items-start p-16 text-[#1B4D3E]">
+        {/* Placeholder text for the logo area */}
+        <h1 className="text-6xl font-bold mb-6 flex items-center gap-2">
+          {/* Placeholder for logo icon */}
+          <div className="h-12 w-12 bg-[#1B4D3E] rounded-lg"></div>
+          Queuely
+        </h1>
+        <p className="text-2xl font-medium max-w-md">
+          Modern queue management for modern service and business
+        </p>
       </div>
 
-      {/* RIGHT SIDE: Login Form (Unchanged) */}
-      <div className="flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md space-y-8">
-          {/* Header */}
-          <div className="text-center md:text-left">
-            <h1 className="text-3xl font-bold text-[#0A1D56]">Login</h1>
-            <p className="text-gray-500 mt-2">Welcome back!</p>
+      {/* RIGHT SIDE: The Login Card */}
+      <div className="flex items-center justify-center p-4 md:p-8">
+
+        {/* THE CARD: White background, deep shadow, rounded corners */}
+        <div className="w-full max-w-[450px] bg-white rounded-2xl shadow-xl p-8 md:p-12 space-y-8">
+
+          {/* Card Header */}
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-[#1B4D3E]">Welcome Back</h2>
+            <p className="text-gray-500 mt-3">
+              Sign in to access and manage your queues
+            </p>
           </div>
 
           {/* Form */}
           <form className="space-y-6">
-
-            {/* Email Field Container */}
+            {/* Username Field (Simple input, no icons) */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="sr-only">Email</Label>
-              <div className="relative">
-                {/* Icon positioned absolutely inside the input container */}
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Email"
-                  // Add padding-left (pl-10) to make room for the icon
-                  className="pl-10 py-6 bg-gray-50 border-gray-200 rounded-xl focus-visible:ring-[#2F55D4] focus-visible:ring-offset-0"
-                  required
-                />
-              </div>
+              <Label htmlFor="username" className="text-[#1B4D3E] font-medium">
+                Username
+              </Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                // Using a slightly darker gray bg for input as seen in image
+                className="py-6 bg-gray-100/50 border-gray-200 rounded-xl focus-visible:ring-[#1B4D3E] focus-visible:ring-offset-0"
+                required
+              />
             </div>
 
-            {/* Password Field Container */}
+            {/* Password Field (Simple input, no icons) */}
             <div className="space-y-2">
-              <Label htmlFor="password" className="sr-only">Password</Label>
-              <div className="relative">
-                {/* Lock Icon on the left */}
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <Input
-                  id="password"
-                  // Dynamically change type based on state
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  // Add padding left (pl-10) and right (pr-10) for icons
-                  className="pl-10 pr-10 py-6 bg-gray-50 border-gray-200 rounded-xl focus-visible:ring-[#2F55D4] focus-visible:ring-offset-0"
-                  required
-                />
-                {/* Eye Icon toggle button on the right */}
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
+              <Label htmlFor="password" className="text-[#1B4D3E] font-medium">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                className="py-6 bg-gray-100/50 border-gray-200 rounded-xl focus-visible:ring-[#1B4D3E] focus-visible:ring-offset-0"
+                required
+              />
             </div>
 
-            {/* Forgot Password Link */}
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-sm font-medium text-[#2F55D4] hover:underline"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-
-            {/* Login Button */}
+            {/* Sign In Button */}
             <Button
               type="submit"
-              className="w-full py-6 text-lg bg-[#2F55D4] hover:bg-[#2547b8] text-white rounded-xl"
+              // Dark green background to match image
+              className="w-full py-6 text-lg font-semibold bg-[#1B4D3E] hover:bg-[#153a2f] text-white rounded-xl mt-4"
             >
-              Login
+              Sign In
             </Button>
           </form>
 
-          {/* Footer / Sign Up Link */}
-          <div className="text-center text-sm text-gray-500">
-            Don't have an account yet?{" "}
+          {/* Card Footer Links */}
+          <div className="text-center space-y-4 text-sm text-gray-600">
+            <p>
+              Dont have account?{" "}
+              <Link
+                href="/signup"
+                className="font-semibold text-[#1B4D3E] hover:underline"
+              >
+                Sign up
+              </Link>
+            </p>
             <Link
-              href="/signup"
-              className="font-medium text-[#2F55D4] hover:underline"
+              href="/forgot-password"
+              className="block font-semibold text-[#1B4D3E] hover:underline"
             >
-              Sign Up
+              Forgot your password?
             </Link>
           </div>
         </div>
