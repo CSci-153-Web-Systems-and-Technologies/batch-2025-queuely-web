@@ -19,7 +19,7 @@ export default function LoginPage() {
           <div className="h-12 w-12 bg-[#1B4D3E] rounded-lg"></div>
           Queuely
         </h1>
-        <p className="text-2xl font-medium max-w-md">
+        <p className="text-2xl font-medium">
           Modern queue management for modern service and business
         </p>
       </div>
