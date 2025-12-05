@@ -46,9 +46,9 @@ export default function LoginPage() {
     // 2. If login successful, fetch user role (Authorization)
     if (authData.user) {
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('role')
-        .eq('id', authData.user.id)
+        .eq('user_id', authData.user.id)
         .single();
 
       if (profileError) {
