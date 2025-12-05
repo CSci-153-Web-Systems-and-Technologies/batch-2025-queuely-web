@@ -58,7 +58,7 @@ export default function UserDashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           {/* Link to the new Profile page */}
-          <Link href="/user/profile">
+          <Link href="/profile">
             <Button
               variant="ghost"
               size="icon"
