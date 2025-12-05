@@ -127,7 +127,7 @@ export default function SettingsPage() {
                     <div className="space-y-0.5">
                     <Label className="text-base">SMS Notifications</Label>
                     <p className="text-sm text-muted-foreground">
-                        Send text messages to customers when it's their turn.
+                        Send text messages to customers when its their turn.
                     </p>
                     </div>
                     <Switch />
