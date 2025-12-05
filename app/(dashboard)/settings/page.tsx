@@ -1,147 +1,139 @@
-// src/app/(dashboard)/settings/page.tsx
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save } from "lucide-react";
+// src/app/(dashboard)/page.tsx
+"use client";
 
-export default function SettingsPage() {
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+// Sample data for the chart
+const data = [
+  { name: "Monday", volume: 180 },
+  { name: "Tuesday", volume: 350 },
+  { name: "Wednesday", volume: 450 },
+  { name: "Thursday", volume: 300 },
+  { name: "Friday", volume: 400 },
+  { name: "Saturday", volume: 320 },
+  { name: "Sunday", volume: 180 },
+];
+
+export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-[#1B4D3E]">
-          Systems Settings
+          Dashboard Overview
         </h1>
         <p className="text-gray-500">
-          Configure your queuing system preferences and operations
+          Monitor your queuing system performance and statistics
         </p>
       </div>
 
-      {/* Settings Tabs */}
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px] bg-[#E8F3E8]">
-          <TabsTrigger
-            value="general"
-            className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white"
-          >
-            General
-          </TabsTrigger>
-          <TabsTrigger
-            value="queue-config"
-            className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white"
-          >
-            Queue Config
-          </TabsTrigger>
-        </TabsList>
+      {/* Stats Cards Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Total Customers */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Customers Today
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-[#1B4D3E]">304</div>
+          </CardContent>
+        </Card>
 
-        {/* General Settings Tab Content */}
-        <TabsContent value="general">
-          <Card>
-            <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-              <CardDescription>
-                Manage general system information.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="company-name">Company Name</Label>
-                <Input id="company-name" placeholder="Enter company name" className="bg-[#E8F3E8] border-none" />
-              </div>
-              <div className="space-y-2">
-                 <Label htmlFor="working-hours">Working Hours</Label>
-                 <div className="grid grid-cols-2 gap-4">
-                    <Input id="working-hours-start" placeholder="09:00 AM" className="bg-[#E8F3E8] border-none" />
-                    <Input id="working-hours-end" placeholder="05:00 PM" className="bg-[#E8F3E8] border-none" />
-                 </div>
-              </div>
-              <div className="flex items-center justify-between space-x-2 border p-4 rounded-lg bg-[#E8F3E8] border-none">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Maintenance Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Temporarily disable the queuing system for maintenance.
-                  </p>
-                </div>
-                <Switch />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="bg-[#1B4D3E] hover:bg-[#153a2f]">
-                <Save className="mr-2 h-4 w-4" /> Save Changes
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
+        {/* Completed Services */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Completed Services
+            </CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-[#1B4D3E]">95</div>
+          </CardContent>
+        </Card>
 
-        {/* Queue Config Tab Content */}
-        <TabsContent value="queue-config">
-          <Card>
-            <CardHeader>
-              <CardTitle>Queue Configuration</CardTitle>
-              <CardDescription>
-                Adjust how your queues operate.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="max-queue">Maximum Queue Length</Label>
-                        <Input id="max-queue" placeholder="e.g., 100" className="bg-[#E8F3E8] border-none" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="avg-service">Average Service Time (minutes)</Label>
-                        <Input id="avg-service" placeholder="e.g., 15" className="bg-[#E8F3E8] border-none" />
-                    </div>
-                </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between space-x-2">
-                    <div className="space-y-0.5">
-                    <Label className="text-base">Auto-advance Queue</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Automatically call the next customer when a service is completed.
-                    </p>
-                    </div>
-                    <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between space-x-2">
-                    <div className="space-y-0.5">
-                    <Label className="text-base">Enable Priority Support</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Allow specific tickets to be prioritized in the queue.
-                    </p>
-                    </div>
-                    <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between space-x-2">
-                    <div className="space-y-0.5">
-                    <Label className="text-base">SMS Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Send text messages to customers when its their turn.
-                    </p>
-                    </div>
-                    <Switch />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="bg-[#1B4D3E] hover:bg-[#153a2f]">
-                <Save className="mr-2 h-4 w-4" /> Save Changes
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        {/* Average Waiting Time */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Average Waiting Time
+            </CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-[#1B4D3E]">3 mins</div>
+          </CardContent>
+        </Card>
+
+        {/* Current Queue Length */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Current Queue Length
+            </CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-[#1B4D3E]">48</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Weekly Queue Volume Chart */}
+      <Card className="p-6">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="text-[#1B4D3E]">Weekly Queue Volume</CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          <div className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value}`}
+                />
+                <Tooltip
+                  cursor={{ fill: "transparent" }}
+                  contentStyle={{ borderRadius: "8px" }}
+                />
+                <Bar dataKey="volume" fill="#4A8B7F" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
