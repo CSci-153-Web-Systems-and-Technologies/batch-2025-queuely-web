@@ -22,7 +22,7 @@ export function UserTopbar() {
 
       {/* User Actions (Profile & Logout) */}
       <div className="flex items-center gap-2">
-        <Link href="/user/profile">
+        <Link href="/profile">
           <Button
             variant="ghost"
             size="icon"
