@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { User, LogOut, Users as UsersIcon, Clock as ClockIcon } from "lucide-react";
-
+import { UserTopbar } from "@/components/user/topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -50,32 +50,8 @@ export default function UserDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
-      {/* --- TOP BAR --- */}
-      <header className="max-w-2xl mx-auto flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <div className="h-10 w-10 bg-[#1B4D3E] rounded-lg"></div>
-          <h1 className="text-3xl font-bold text-[#1B4D3E]">Queuely</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Link to the new Profile page */}
-          <Link href="/profile">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-[#1B4D3E] hover:bg-[#1B4D3E]/10"
-            >
-              <User className="h-6 w-6" />
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-[#1B4D3E] hover:bg-[#1B4D3E]/10"
-          >
-            <LogOut className="h-6 w-6" />
-          </Button>
-        </div>
-      </header>
+      {/* --- NEW TOPBAR COMPONENT --- */}
+      <UserTopbar />
 
       {/* --- MAIN CONTENT --- */}
       <main className="max-w-md mx-auto space-y-6">
