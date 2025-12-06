@@ -1,6 +1,8 @@
 // src/app/(user)/page.tsx
 "use client";
 
+import { createClient } from "@/lib/supabase/client";
+
 import { useState } from "react";
 import Link from "next/link";
 import { User, LogOut, Users as UsersIcon, Clock as ClockIcon } from "lucide-react";
@@ -10,10 +12,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default function UserDashboardPage() {
-  // --- SIMULATED STATE ---
-  // Set this to `null` to see the "Get Number" view.
-  // Set it to the ticket object to see the "Active Ticket" view.
+  const supabase = createClient(); // Initialize Supabase
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
   // const [activeTicket, setActiveTicket] = useState({
   //   number: 40,
   //   currentPosition: 3,
@@ -26,21 +27,46 @@ export default function UserDashboardPage() {
 
   const user = { name: "Ricky" };
 
-  const handleGetNumber = () => {
-    // In a real app, this would call an API to join a queue.
-    // For now, we'll just simulate getting a ticket.
-    setActiveTicket({
-      number: 41,
-      currentPosition: 29,
-      totalInLine: 29,
-      estimatedWait: "~45 mins",
-      serviceAround: "3:30",
-      priority: "No",
-      joined: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    });
+  const handleGetNumber = async () => {
+    setLoading(true);
+    
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("You must be logged in to join a queue!");
+      setLoading(false);
+      return;
+    }
+
+    // Insert the ticket into your specific table
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert([
+        { 
+          user_id: user.id, 
+          service_name: 'Registrar', // You can make this dynamic later
+          status: 'waiting',
+          is_priority: false 
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error joining queue:', error);
+      alert('Could not join queue.');
+    } else {
+      // Update local state to show the ticket immediately
+      setActiveTicket({
+        number: data.ticket_number,
+        currentPosition: "Calculating...", // We can fetch this next
+        serviceAround: "Calculating...",
+        priority: data.is_priority ? "Yes" : "No",
+        joined: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    }
+    setLoading(false);
   };
 
   const handleLeaveQueue = () => {
