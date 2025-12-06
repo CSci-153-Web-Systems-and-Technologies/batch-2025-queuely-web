@@ -2,8 +2,6 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, Calendar, Clock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,39 +10,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { useRouter } from "next/navigation";
 
 export default function UserProfilePage() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   
   // --- STATE ---
-  const [setLoading] = useState(true);
+  // Removed the 'loading' state for initial page load
   const [updating, setUpdating] = useState(false);
-  const [user, setUser] = useState<any>(null); // Auth user
+  const [user, setUser] = useState<any>(null);
   
-  // Profile Form State
+  // Profile Form State - Initialized to empty strings
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
     preferred_name: "",
-    email: "",
+    email: "Loading...", // Placeholder while fetching
     avatar_url: ""
   });
 
   // History State
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[] | null>(null); // Initialized to null for checking load status
 
   // --- 1. FETCH DATA ON LOAD ---
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true);
-        // A. Get Auth User
+        // Removed setLoading(true)
+        
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) return;
         setUser(authUser);
 
-        // B. Get Profile Details (from 'users' table)
+        // B. Get Profile Details
         const { data: profile } = await supabase
           .from("users")
           .select("*")
@@ -56,7 +55,8 @@ export default function UserProfilePage() {
             first_name: profile.first_name || "",
             last_name: profile.last_name || "",
             preferred_name: profile.preferred_name || "",
-            email: authUser.email || "", 
+            // Use Auth email initially, then update profile fields
+            email: authUser.email || "N/A", 
             avatar_url: profile.avatar_url || ""
           });
         }
@@ -66,15 +66,14 @@ export default function UserProfilePage() {
           .from("tickets")
           .select("*")
           .eq("user_id", authUser.id)
-          .order("created_at", { ascending: false }); // Newest first
+          .order("created_at", { ascending: false });
 
         if (tickets) setHistory(tickets);
 
       } catch (error) {
         console.error("Error loading profile:", error);
-      } finally {
-        setLoading(false);
-      }
+      } 
+      // Removed setLoading(false)
     };
 
     fetchData();
@@ -99,7 +98,7 @@ export default function UserProfilePage() {
       alert("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert("Failed to update profile.");
+      alert("Failed to update profile. Check RLS policies.");
     } finally {
       setUpdating(false);
     }
@@ -111,32 +110,34 @@ export default function UserProfilePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // --- NON-BLOCKING RENDER ---
+  // The UI is rendered immediately, relying on initial state ("Loading...") 
+  // and updating when the network calls in useEffect complete.
+  
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
       {/* Header */}
       <header className="max-w-2xl mx-auto flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-[#1B4D3E]">Profile</h1>
         <Button 
-          variant="ghost" 
-          size="icon" 
-          className="text-[#1B4D3E]"
-          onClick={() => {
-            // 1. Go to Home
-            router.push("/home");
-            // 2. Force a data refresh
-            router.refresh(); 
-          }}
-        >
-          <ArrowLeft className="h-6 w-6" />
-        </Button>
+            variant="ghost" 
+            size="icon" 
+            className="text-[#1B4D3E]"
+            onClick={() => {
+              router.push("/home");
+              router.refresh(); 
+            }}
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
       </header>
 
       <main className="max-w-md mx-auto">
         <Card className="border-none shadow-lg">
-          <CardContent className="pb-6">
+          <CardContent className="p-6">
             <Tabs defaultValue="personal" className="w-full">
               
-              {/* Tabs List (Original Design) */}
+              {/* Tabs List */}
               <TabsList className="grid w-full grid-cols-3 bg-[#E8F3E8] mb-6">
                 <TabsTrigger 
                   value="personal" 
@@ -164,7 +165,7 @@ export default function UserProfilePage() {
                   <h2 className="text-xl font-bold text-[#1B4D3E]">Personal Information</h2>
                 </div>
 
-                {/* Avatar & Email */}
+                {/* Avatar & Email (Renders instantly) */}
                 <div className="flex items-center gap-4 mb-6">
                   <Avatar className="h-16 w-16">
                     <AvatarImage src={formData.avatar_url || "https://github.com/shadcn.png"} />
@@ -172,13 +173,13 @@ export default function UserProfilePage() {
                   </Avatar>
                   <div>
                     <h3 className="text-xl font-bold text-[#1B4D3E]">
-                      {formData.preferred_name || "User"}
+                      {formData.preferred_name || "Loading..."} 
                     </h3>
                     <p className="text-sm text-gray-500">{formData.email}</p>
                   </div>
                 </div>
 
-                {/* Editable Form */}
+                {/* Editable Form (Renders instantly, then fields fill) */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[#1B4D3E] font-semibold">First Name</Label>
@@ -233,7 +234,11 @@ export default function UserProfilePage() {
                 <h2 className="text-xl font-bold text-[#1B4D3E] mb-4">Queue History</h2>
                 
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                  {history.length === 0 ? (
+                  {history === null ? (
+                    <p className="text-center text-gray-500 py-8 flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
+                    </p>
+                  ) : history.length === 0 ? (
                     <p className="text-center text-gray-500 py-8">No history yet.</p>
                   ) : (
                     history.map((ticket) => (
