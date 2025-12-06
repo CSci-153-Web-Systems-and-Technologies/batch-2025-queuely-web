@@ -175,3 +175,29 @@ export async function callNextInLine(
 
   return nextTicket;
 }
+
+export async function getSettings(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('*')
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Updates the global system settings.
+ */
+export async function updateSettings(supabase: SupabaseClient, newSettings: any) {
+  // Use the fixed ID to ensure we update the one and only config row
+  const CONFIG_ID = '00000000-0000-0000-0000-000000000001'; 
+  
+  const { error } = await supabase
+    .from('settings')
+    .update(newSettings)
+    .eq('id', CONFIG_ID); 
+  
+  if (error) throw error;
+  return true;
+}

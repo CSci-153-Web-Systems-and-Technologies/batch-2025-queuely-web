@@ -242,7 +242,7 @@ export default function UserProfilePage() {
                     <p className="text-center text-gray-500 py-8">No history yet.</p>
                   ) : (
                     history.map((ticket) => (
-                      <div key={ticket.id} className="bg-[#E8F3E8] p-4 rounded-xl space-y-2">
+                      <div key={ticket.ticket_id} className="bg-[#E8F3E8] p-4 rounded-xl space-y-2">
                         <div className="flex justify-between items-start">
                           <h3 className="font-bold text-[#1B4D3E]">{ticket.service_name}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${

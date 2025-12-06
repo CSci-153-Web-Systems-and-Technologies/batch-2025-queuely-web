@@ -7,16 +7,16 @@ import { Users as UsersIcon, Clock as ClockIcon, Loader2 } from "lucide-react";
 import { UserTopbar } from "@/components/user/topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { getQueueMetrics, joinQueue, leaveQueue, formatTime } from "@/utils/queue-service"; 
+import { getQueueMetrics, joinQueue, leaveQueue, formatTime, getSettings } from "@/utils/queue-service";
 
 export default function UserDashboardPage() {
   const supabase = useMemo(() => createClient(), []);
-
-  const [activeTicket, setActiveTicket] = useState<any | null>(null);
+  const [settings, setSettings] = useState<any>(null); 
   const [userProfile, setUserProfile] = useState<any>(null);
-  
+  const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [loading, setLoading] = useState(false); // For button actions
   const [isChecking, setIsChecking] = useState(true); // For initial page load
+  
 
   // --- REFACTORED: METRICS CALCULATOR ---
   const refreshQueueData = useCallback(async (ticket: any) => {
@@ -44,14 +44,15 @@ export default function UserDashboardPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      alert("You must be logged in!");
+    if (!user || !settings) { // Check if settings are loaded
+      alert("System data not loaded. Try again.");
       setLoading(false);
       return;
     }
 
     try {
-      const newTicket = await joinQueue(supabase, user.id, 'Registrar');
+      // Pass the dynamic Company Name as the service name
+      const newTicket = await joinQueue(supabase, user.id, settings.company_name);
       await refreshQueueData(newTicket);
     } catch (error: any) {
       console.error('Error joining:', error);
@@ -85,6 +86,11 @@ export default function UserDashboardPage() {
       setIsChecking(true);
       
       const { data: { user } } = await supabase.auth.getUser();
+      
+      // Fetch Settings FIRST
+      const currentSettings = await getSettings(supabase);
+      if (isMounted) setSettings(currentSettings); // <--- New: Set Settings State
+
       if (!user) {
         if (isMounted) setIsChecking(false);
         return;
@@ -95,13 +101,17 @@ export default function UserDashboardPage() {
         .from('users')
         .select('first_name, preferred_name')
         .eq('user_id', user.id)
-        .single();
-      
+        .maybeSingle(); // <--- This prevents crashing if the row doesn't exist
+
       if (isMounted && profile) {
         setUserProfile(profile);
+      } else if (isMounted) {
+         // If no profile is found (or RLS blocked it), ensure name is reset/null
+         setUserProfile(null); 
       }
 
-      // B. Check for Active Ticket
+      // B. CRITICAL: Check for Active Ticket
+      // The queue logic uses the company name as the service name now
       const { data: existingTicket } = await supabase
         .from('tickets')
         .select('*')
@@ -118,7 +128,6 @@ export default function UserDashboardPage() {
     };
 
     checkExistingTicket();
-
     return () => { isMounted = false; };
   }, [supabase, refreshQueueData]);
 
@@ -154,6 +163,13 @@ export default function UserDashboardPage() {
 
       <main className="max-w-md mx-auto space-y-6">
         <p className="text-lg text-[#1B4D3E] font-medium">Hello, {displayName}</p>
+
+        {settings && activeTicket && (
+          <p className="text-sm text-gray-600 font-medium text-center">
+            You are currently queuing for: 
+            <span className="text-[#1B4D3E] font-bold"> {settings.company_name}</span>
+          </p>
+      )}
 
         {activeTicket ? (
           // --- VIEW 1: ACTIVE TICKET ---
