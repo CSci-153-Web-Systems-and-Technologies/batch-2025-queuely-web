@@ -41,25 +41,33 @@ export default function UserDashboardPage() {
 
   // --- REFACTORED: JOIN QUEUE ---
   const handleGetNumber = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || !settings) { // Check if settings are loaded
-      alert("System data not loaded. Try again.");
-      setLoading(false);
-      return;
-    }
+      // Check 1: User & Global Settings Loaded
+      if (!user || !settings) { 
+          alert("System data is initializing. Please wait a moment.");
+          setLoading(false);
+          return;
+      }
 
-    try {
-      // Pass the dynamic Company Name as the service name
-      const newTicket = await joinQueue(supabase, user.id, settings.company_name);
-      await refreshQueueData(newTicket);
-    } catch (error: any) {
-      console.error('Error joining:', error);
-      alert(error.message || 'Could not join queue.');
-    } finally {
-      setLoading(false);
-    }
+      // CHECK 2: Is the Service Name configured? 
+      if (!settings.company_name || settings.company_name.length < 3) {
+          alert("The queue service name has not been configured by an administrator yet.");
+          setLoading(false);
+          return;
+      }
+
+      try {
+          // Pass the dynamic Company Name as the service name
+          const newTicket = await joinQueue(supabase, user.id, settings.company_name);
+          await refreshQueueData(newTicket);
+      } catch (error: any) {
+          console.error('Error joining:', error);
+          alert(error.message || 'Could not join queue.');
+      } finally {
+          setLoading(false);
+      }
   };
 
   // --- REFACTORED: LEAVE QUEUE ---

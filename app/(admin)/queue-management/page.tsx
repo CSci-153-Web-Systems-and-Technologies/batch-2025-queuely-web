@@ -1,30 +1,30 @@
-// src/app/(admin)/queue-management/page.tsx
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Play, Pause, SkipForward, Loader2, Zap, Users, Check, X } from "lucide-react";
+import { Loader2, Zap, Users as UsersIcon, Check, SkipForward } from "lucide-react"; // Note: Removed unused icons
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-// IMPORTANT: Import the new helper functions
-import { getActiveQueue, updateTicketStatus, callNextInLine } from "@/utils/queue-service"; 
+import { getActiveQueue, updateTicketStatus, callNextInLine, getSettings } from "@/utils/queue-service";
 
-// --- CONFIG ---
-const ADMIN_SERVICE = 'Registrar';
 
 export default function QueueManagementPage() {
     const supabase = useMemo(() => createClient(), []);
+
+    const [settings, setSettings] = useState<any>(null);
     const [queue, setQueue] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [servingTicket, setServingTicket] = useState<any>(null);
 
-    // Function to fetch and update the queue data
-    const fetchQueue = useCallback(async () => {
+    // --- FUNCTION TO FETCH AND UPDATE THE QUEUE DATA ---
+    // FIX: serviceName is now an explicit parameter in the callback signature
+    const fetchQueue = useCallback(async (serviceName: string) => { 
         setLoading(true);
         try {
-            const data = await getActiveQueue(supabase, ADMIN_SERVICE);
+            // FIX: Use the parameter here instead of relying on outer scope
+            const data = await getActiveQueue(supabase, serviceName); 
             setQueue(data);
             const serving = data.find(t => t.status === 'serving');
             setServingTicket(serving || null);
@@ -33,37 +33,52 @@ export default function QueueManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [supabase]);
+    }, [supabase]); // Dependencies are clean
 
+    // --- INITIAL LOAD EFFECT (Runs only once on mount) ---
     useEffect(() => {
-        fetchQueue();
+        const initAdminData = async () => {
+            // 1. Fetch Global Settings (Primary Service Name)
+            const currentSettings = await getSettings(supabase);
+            setSettings(currentSettings); // This updates the settings state
+
+            // 2. PASS THE NAME: Fetch the initial queue data immediately
+            await fetchQueue(currentSettings.company_name); 
+        };
+
+        initAdminData();
         
-        // Realtime Listener
+    }, [supabase, fetchQueue]);
+
+    // --- REALTIME LISTENER EFFECT (Runs when settings are available) ---
+    useEffect(() => {
+        if (!settings) return; // Wait for settings to load
+
         const channel = supabase
             .channel('admin_queue_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-                fetchQueue(); 
+                // When a change occurs, refresh the data using the current dynamic name
+                fetchQueue(settings.company_name); 
             })
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [supabase, fetchQueue]);
+
+    }, [supabase, fetchQueue, settings]); // Depends on settings
+
 
     // --- FUNCTIONAL HANDLERS ---
 
     // 1. Call Next / Start Service
     const handleCallNext = async () => {
+        if (!settings) return;
         setActionLoading(true);
         try {
-            // Get the ID of the currently serving ticket (null if none)
             const currentId = servingTicket?.ticket_id || servingTicket?.id || null;
-            
-            // Call the complex helper function to move the queue
-            await callNextInLine(supabase, currentId, ADMIN_SERVICE);
-            
-            // Refresh local state (realtime will likely update it, but this is a fallback)
-            await fetchQueue(); 
-
+            // Pass the dynamic service name to the helper
+            await callNextInLine(supabase, currentId, settings.company_name);
+            // Refresh local state (realtime will likely update it, but this is a direct fallback)
+            await fetchQueue(settings.company_name); 
         } catch (error) {
             console.error("Error calling next ticket:", error);
             alert("Failed to call next ticket. Check console for details.");
@@ -77,13 +92,9 @@ export default function QueueManagementPage() {
         if (!servingTicket) return alert("No one is currently being served.");
         setActionLoading(true);
         try {
-            // Update the serving ticket to 'completed'
             await updateTicketStatus(supabase, servingTicket.ticket_id || servingTicket.id, 'completed');
-            
-            // Optional: You could call handleCallNext here to automatically move the queue
-            // But for now, we just complete it, and staff must manually click Call Next.
-            await fetchQueue(); 
-            
+            // Refresh using the current settings name
+            await fetchQueue(settings.company_name); 
         } catch (error) {
             console.error("Error completing service:", error);
             alert("Failed to complete service.");
@@ -97,11 +108,10 @@ export default function QueueManagementPage() {
         if (!servingTicket) return alert("No one is currently being served to skip.");
         setActionLoading(true);
         try {
-            // Update the serving ticket to 'cancelled'
             await updateTicketStatus(supabase, servingTicket.ticket_id || servingTicket.id, 'cancelled');
             
             // Move the queue forward automatically after skipping
-            await handleCallNext();
+            await handleCallNext(); // handleCallNext will handle the service name internally
 
         } catch (error) {
             console.error("Error skipping ticket:", error);
@@ -111,11 +121,13 @@ export default function QueueManagementPage() {
         }
     };
     
+    // --- DISPLAY CALCULATION ---
     const nextInQueue = queue.find(t => t.status === 'waiting')?.ticket_number || '—';
     const totalWaiting = queue.filter(t => t.status === 'waiting').length;
     
-    if (loading) {
-        return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#1B4D3E]" /></div>;
+    // --- RENDER BLOCKING ---
+    if (loading || !settings) { 
+        return <div className="h-screen flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" /></div>;
     }
 
     return (
@@ -123,7 +135,7 @@ export default function QueueManagementPage() {
             {/* Page Header */}
             <div>
                 <h1 className="text-3xl font-bold text-[#1B4D3E]">
-                    Queue Management ({ADMIN_SERVICE})
+                    Queue Management ({settings.company_name})
                 </h1>
                 <p className="text-gray-500">
                     Monitor and manage customer queues in real-time

@@ -1,9 +1,7 @@
 // src/lib/queue-service.ts
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// CONSTANTS
-const AVG_WAIT_TIME_MINS = 5;
-
+const AVG_WAIT_TIME_MINS = 5; // Average service time per ticket in minutes
 /**
  * Calculates a specific ticket's position and estimated wait time.
  */
@@ -103,19 +101,19 @@ export function formatTime(dateString: string) {
 
 
 export async function getActiveQueue(supabase: SupabaseClient, serviceName: string) {
-  const { data, error } = await supabase
-    .from('tickets')
-    .select(`
-      *, 
-      user_id (user_id, first_name, preferred_name)  // Join with user profile data
-    `)
-    .eq('service_name', serviceName)
-    .in('status', ['waiting', 'serving'])
-    .order('is_priority', { ascending: false }) // Priority tickets first (True = 1, False = 0)
-    .order('created_at', { ascending: true });   // Then by time joined (Oldest first)
-  
-  if (error) throw error;
-  return data;
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        *, 
+        user_id(first_name, preferred_name)
+      `)
+      .eq('service_name', serviceName) 
+      .in('status', ['waiting', 'serving'])
+      .order('is_priority', { ascending: false })
+      .order('created_at', { ascending: true });
+    
+    if (error) throw error;
+    return data;
 }
 
 /**
