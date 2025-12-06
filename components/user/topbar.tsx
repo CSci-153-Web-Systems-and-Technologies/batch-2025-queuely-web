@@ -1,17 +1,33 @@
-// src/components/user/topbar.tsx
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client"; // Import Supabase
+import { useRouter } from "next/navigation"; // Import Router for redirect
 
 export function UserTopbar() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    // 1. Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    // 2. Redirect to Login Page
+    router.push("/login"); // or "/" depending on your setup
+    router.refresh(); // Ensure the page data clears
+  };
+
   return (
     <header className="max-w-2xl mx-auto flex items-center justify-between mb-8">
       {/* Logo and App Name */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 relative">
+          {/* Make sure this file exists in public/logos/ */}
           <Image
-            src="/logos/queuely_logo.svg" // Using your actual logo
+            src="/logos/queuely_logo.svg" 
             alt="Queuely Logo"
             fill
             className="object-contain"
@@ -32,8 +48,10 @@ export function UserTopbar() {
             <span className="sr-only">Profile</span>
           </Button>
         </Link>
-        {/* Note: Add actual logout logic here later */}
+        
+        {/* Real Logout Button */}
         <Button
+          onClick={handleLogout} // <--- Added this
           variant="ghost"
           size="icon"
           className="text-[#1B4D3E] hover:bg-[#1B4D3E]/10"

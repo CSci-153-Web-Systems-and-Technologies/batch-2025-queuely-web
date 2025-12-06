@@ -3,7 +3,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { User, LogOut, Users as UsersIcon, Clock as ClockIcon } from "lucide-react";
+import { User, LogOut, Loader2, Users as UsersIcon, Clock as ClockIcon } from "lucide-react";
 import { UserTopbar } from "@/components/user/topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -28,7 +28,7 @@ export default function UserDashboardPage() {
     setActiveTicket((prev: any) => ({
       ...prev,
       ...ticket,
-      id: ticket.id || ticket.ticket.id,
+      id: ticket.ticket_id,
       number: ticket.ticket_number,
       currentPosition: metrics.position,
       totalInLine: metrics.totalInLine,
@@ -81,44 +81,56 @@ export default function UserDashboardPage() {
 
   // --- EXISTING TICKET CHECK ---
   useEffect(() => {
-    const initData = async () => {
-      setIsChecking(true); // Start loading
+    let isMounted = true; // Prevent setting state if user leaves page
 
+    const checkExistingTicket = async () => {
+      setIsChecking(true);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setIsChecking(false);
+        if (isMounted) setIsChecking(false);
         return;
       }
 
-      // A. Fetch Profile Name
+      // A. Get User Name
       const { data: profile } = await supabase
         .from('users')
         .select('first_name, preferred_name')
         .eq('user_id', user.id)
         .single();
-      if (profile) setUserProfile(profile);
+      
+      if (isMounted && profile) {
+        setUserProfile(profile);
+      }
 
-      // B. Check for EXISTING TICKET
-      // This looks for any ticket that is NOT 'completed' or 'cancelled'
-      const { data: existingTicket } = await supabase
+      // B. CRITICAL: Check for Active Ticket
+      // using maybeSingle() is safer than single() to avoid 406 errors
+      const { data: existingTicket, error } = await supabase
         .from('tickets')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['waiting', 'serving']) // Check active statuses
-        .single();
+        .in('status', ['waiting', 'serving'])
+        .maybeSingle(); 
 
-      // If we find one, we immediately calculate stats and show the details card
-      if (existingTicket) {
-        await refreshQueueData(existingTicket);
+      if (isMounted) {
+        if (existingTicket) {
+          console.log("Found existing ticket:", existingTicket);
+          await refreshQueueData(existingTicket);
+        } else {
+          console.log("No active ticket found.");
+          setActiveTicket(null);
+        }
+        setIsChecking(false);
       }
-
-      setIsChecking(false); // Stop loading
     };
 
-    initData();
-  }, [supabase, refreshQueueData]);
+    checkExistingTicket();
+
+    return () => { isMounted = false; };
+  }, [supabase, refreshQueueData]); // Dependencies are stable
 
   const displayName = userProfile?.preferred_name || userProfile?.first_name || "User";
+
 
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">

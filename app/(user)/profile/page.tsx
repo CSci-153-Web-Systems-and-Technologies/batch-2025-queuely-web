@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, Calendar, Clock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,10 @@ import { Separator } from "@/components/ui/separator";
 
 export default function UserProfilePage() {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   
   // --- STATE ---
-  const [loading, setLoading] = useState(true);
+  const [setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [user, setUser] = useState<any>(null); // Auth user
   
@@ -109,24 +111,24 @@ export default function UserProfilePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#E8F3E8]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1B4D3E]" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
       {/* Header */}
       <header className="max-w-2xl mx-auto flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-[#1B4D3E]">Profile</h1>
-        <Link href="/home">
-          <Button variant="ghost" size="icon" className="text-[#1B4D3E]">
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-        </Link>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-[#1B4D3E]"
+          onClick={() => {
+            // 1. Go to Home
+            router.push("/home");
+            // 2. Force a data refresh
+            router.refresh(); 
+          }}
+        >
+          <ArrowLeft className="h-6 w-6" />
+        </Button>
       </header>
 
       <main className="max-w-md mx-auto">
