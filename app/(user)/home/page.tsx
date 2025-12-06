@@ -61,60 +61,83 @@ export default function UserDashboardPage() {
         {activeTicket ? (
           // --- VIEW 1: ACTIVE TICKET ---
           <>
-            <Card className="bg-white border-none shadow-lg overflow-hidden rounded-2xl">
-              <div className="bg-[#1B4D3E] p-8 text-center text-white">
-                <h2 className="text-xl font-medium opacity-90">
+            <Card className="max-w-md w-full bg-white border-none shadow-lg overflow-hidden rounded-2xl ring-1 ring-black/5 p-0">
+  
+              {/* --- 1. GREEN HEADER SECTION --- */}
+              {/* We keep this OUTSIDE of CardContent so it spans the full width */}
+              <div className="bg-[#1B4D3E] py-10 px-6 text-center">
+                <h2 className="text-white/80 text-lg font-medium mb-1 tracking-wide">
                   Your Ticket Number
                 </h2>
-                <div className="text-7xl font-bold mt-2">
+                <div className="text-7xl font-bold text-white tracking-tight">
                   {activeTicket.number}
                 </div>
               </div>
+
+              {/* --- 2. WHITE BODY SECTION --- */}
               <CardContent className="p-6 space-y-6">
-                {/* ... ticket details (same as before) ... */}
-                <div className="bg-[#E8F3E8] rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <p className="text-[#1B4D3E] font-medium flex items-center gap-2">
-                    <UsersIcon className="h-5 w-5" /> Current Position
+                
+                {/* Current Position Box */}
+                <div className="bg-[#E8F5E9] rounded-xl p-6 flex flex-col items-center justify-center text-center border border-[#1B4D3E]/10">
+                  <p className="text-[#1B4D3E] font-semibold flex items-center gap-2 mb-1">
+                    <UsersIcon className="h-5 w-5" /> 
+                    Current Position
                   </p>
-                  <div className="text-4xl font-bold text-[#1B4D3E] mt-2">
+                  <div className="text-4xl font-bold text-[#1B4D3E]">
                     {activeTicket.currentPosition}
                   </div>
-                  <p className="text-sm text-[#1B4D3E]/70 mt-1">
+                  <p className="text-sm text-[#1B4D3E]/60 font-medium">
                     of {activeTicket.totalInLine} people in line
                   </p>
                 </div>
-                {/* ... other ticket details ... */}
-                <Separator className="bg-gray-200" />
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Priority:</span>
-                    <span className="font-medium text-[#1B4D3E] bg-[#1B4D3E]/10 px-3 py-1 rounded-full">
-                      {activeTicket.priority}
+
+                {/* Ticket Details (Priority & Time) */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 font-medium">Priority Status</span>
+                    <span
+                      className={`px-3 py-1 rounded-full font-semibold text-xs ${
+                        activeTicket.priority === "Yes"
+                          ? "bg-red-100 text-red-700 border border-red-200"
+                          : "bg-gray-100 text-gray-600 border border-gray-200"
+                      }`}
+                    >
+                      {activeTicket.priority === "Yes" ? "Yes" : "No"}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Joined:</span>
-                    <span className="font-medium text-[#1B4D3E]">
+                  
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 font-medium">Joined Queue</span>
+                    <span className="font-semibold text-[#1B4D3E]">
                       {activeTicket.joined}
                     </span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="p-6 pt-0">
+
+              {/* --- 3. FOOTER SECTION --- */}
+              <CardFooter className="p-6 pt-0 pb-10">
                 <Button
                   onClick={handleLeaveQueue}
-                  className="w-full py-6 text-lg font-bold text-[#1B4D3E] bg-[#F4E08F] hover:bg-[#eacf6a] rounded-xl shadow-sm transition-all hover:shadow-md"
+                  className="w-full h-14 text-lg font-bold text-[#1B4D3E] bg-[#F4E08F] hover:bg-[#EACF6A] rounded-xl shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                 >
                   Leave Queue
                 </Button>
               </CardFooter>
+
             </Card>
-            <div className="bg-[#6A9A8B] text-white p-4 rounded-xl text-sm shadow-sm">
-              <p>
-                <span className="font-bold">Queue Updates:</span> You've been
-                added to the end of the queue.
-              </p>
-              <p className="text-white/70 text-xs mt-1">Just now</p>
+
+            {/* Notification (Kept separate as per your original code) */}
+            <div className="mt-4 bg-[#6A9A8B] text-white p-4 rounded-xl text-sm shadow-sm flex items-start gap-3">
+              {/* Added a small info icon for polish */}
+              <svg className="w-5 h-5 shrink-0 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div>
+                <p>
+                  <span className="font-bold">Queue Updates:</span> You've been
+                  added to the end of the queue.
+                </p>
+                <p className="text-white/70 text-xs mt-1">Just now</p>
+              </div>
             </div>
           </>
         ) : (

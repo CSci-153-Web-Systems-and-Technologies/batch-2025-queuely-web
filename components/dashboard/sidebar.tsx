@@ -122,7 +122,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
             <Tooltip key={item.name} delayDuration={0}>
               <TooltipTrigger asChild>{LinkContent}</TooltipTrigger>
               {/* Tooltip appears to the right of the sidebar */}
-              <TooltipContent side="right" className="bg-[#0A1D56] text-white border-white/10 font-medium ml-2">
+              <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">
                 <p>{item.name}</p>
               </TooltipContent>
             </Tooltip>
@@ -174,7 +174,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
                   <LogOut className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#0A1D56] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
+              <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
              </Tooltip>
           )}
 
