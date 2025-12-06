@@ -2,35 +2,44 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { User, LogOut, Users as UsersIcon, Clock as ClockIcon } from "lucide-react";
 import { UserTopbar } from "@/components/user/topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { getQueueMetrics, joinQueue, leaveQueue, formatTime } from "@/utils/queue-service"; 
 
 export default function UserDashboardPage() {
-  const supabase = createClient(); // Initialize Supabase
+  const supabase = useMemo(() => createClient(), []);
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
-  // const [activeTicket, setActiveTicket] = useState({
-  //   number: 40,
-  //   currentPosition: 3,
-  //   totalInLine: 28,
-  //   estimatedWait: "~5 mins",
-  //   serviceAround: "2:38",
-  //   priority: "Yes",
-  //   joined: "1:44",
-  // });
 
-  const user = { name: "Ricky" };
+  const user = { name: "Ricky" }; // Replace with real auth user data later
 
+  // --- REFACTORED: METRICS CALCULATOR ---
+  const refreshQueueData = useCallback(async (ticket: any) => {
+    if (!ticket) return;
+
+    // Use the helper function instead of raw Supabase queries
+    const metrics = await getQueueMetrics(supabase, ticket.service_name, ticket.created_at);
+
+    setActiveTicket((prev: any) => ({
+      ...prev,
+      ...ticket,
+      id: ticket.id,
+      number: ticket.ticket_number,
+      currentPosition: metrics.position,
+      totalInLine: metrics.totalInLine,
+      estimatedWait: metrics.estimatedWait,
+      serviceAround: metrics.serviceAround,
+      priority: ticket.is_priority ? "Yes" : "No",
+      joined: formatTime(ticket.created_at), // Use helper for time formatting
+    }));
+  }, [supabase]);
+
+  // --- REFACTORED: JOIN QUEUE ---
   const handleGetNumber = async () => {
     setLoading(true);
-    
-    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -39,40 +48,55 @@ export default function UserDashboardPage() {
       return;
     }
 
-    // Insert the ticket into your specific table
-    const { data, error } = await supabase
-      .from('tickets')
-      .insert([
-        { 
-          user_id: user.id, 
-          service_name: 'Registrar', // You can make this dynamic later
-          status: 'waiting',
-          is_priority: false 
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) {
+    try {
+      // Use the helper function to join
+      const newTicket = await joinQueue(supabase, user.id, 'Registrar');
+      await refreshQueueData(newTicket);
+    } catch (error) {
       console.error('Error joining queue:', error);
       alert('Could not join queue.');
-    } else {
-      // Update local state to show the ticket immediately
-      setActiveTicket({
-        number: data.ticket_number,
-        currentPosition: "Calculating...", // We can fetch this next
-        serviceAround: "Calculating...",
-        priority: data.is_priority ? "Yes" : "No",
-        joined: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleLeaveQueue = () => {
-    // Simulate leaving the queue
-    setActiveTicket(null);
+  // --- REFACTORED: LEAVE QUEUE ---
+  const handleLeaveQueue = async () => {
+    if (!activeTicket?.id) return;
+    setLoading(true);
+
+    try {
+      // Use the helper function to leave
+      await leaveQueue(supabase, activeTicket.id);
+      setActiveTicket(null);
+    } catch (error) {
+      console.error("Error leaving queue:", error);
+      alert("Failed to leave the queue.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // --- EXISTING TICKET CHECK ---
+  useEffect(() => {
+    const fetchActiveTicket = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: existingTicket } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'waiting')
+        .single();
+
+      if (existingTicket) {
+        refreshQueueData(existingTicket);
+      }
+    };
+
+    fetchActiveTicket();
+  }, [supabase, refreshQueueData]);
 
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
@@ -114,6 +138,19 @@ export default function UserDashboardPage() {
                   </div>
                   <p className="text-sm text-[#1B4D3E]/60 font-medium">
                     of {activeTicket.totalInLine} people in line
+                  </p>
+                </div>
+
+                <div className="bg-[#E8F5E9] rounded-xl p-6 flex flex-col items-center justify-center text-center border border-[#1B4D3E]/10">
+                  <p className="text-[#1B4D3E] font-semibold flex items-center gap-2 mb-1">
+                    <ClockIcon className="h-5 w-5" /> 
+                    Estimated Time Wait
+                  </p>
+                  <div className="text-4xl font-bold text-[#1B4D3E]">
+                    {activeTicket.estimatedWait}
+                  </div>
+                  <p className="text-sm text-[#1B4D3E]/60 font-medium mt-1">
+                    Service around {activeTicket.serviceAround}
                   </p>
                 </div>
 
