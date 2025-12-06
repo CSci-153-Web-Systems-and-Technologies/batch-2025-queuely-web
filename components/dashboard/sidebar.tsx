@@ -3,13 +3,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"; // 1. IMPORT useRouter
 import {
   LayoutDashboard,
   Users,
   Settings,
   LogOut,
-  PanelLeft, // Icon for the toggle button
+  PanelLeft,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -21,6 +21,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+// 2. IMPORT Supabase client creator
+import { createClient } from "@/lib/supabase/client"; 
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -28,19 +30,26 @@ const navItems = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-// 1. Define the interface for the new props
 interface SidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }
 
-// 2. Accept props in the component definition
 export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter(); // 3. INITIALIZE ROUTER
+  const supabase = createClient(); // 4. INITIALIZE SUPABASE CLIENT
 
+  // 5. LOGOUT HANDLER
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // Redirect to the root login page
+    router.push("/"); 
+    router.refresh(); 
+  };
+  
   return (
     <aside
-      // 3. Dynamically adjust width based on state with smooth transition
       className={cn(
         "bg-[#1B4D3E] text-white flex flex-col shadow-lg transition-all duration-300 ease-in-out z-10 relative",
         isSidebarOpen ? "w-64" : "w-[70px] items-center"
@@ -53,11 +62,9 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
           isSidebarOpen ? "justify-between" : "justify-center"
         )}
       >
-        {/* Logo & Title - Hidden when collapsed */}
         {isSidebarOpen && (
           <div className="flex items-center transition-opacity duration-300">
             <div className="rounded-lg p-1.5 mr-3">
-              {/* Ensure you have this image or comment it out */}
               <Image
                 src="/logos/queuely_light_logo.svg"
                 alt="Admin Logo"
@@ -69,7 +76,6 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
           </div>
         )}
 
-        {/* 4. The Toggle Button */}
         <Button
           variant="ghost"
           size="icon"
@@ -85,14 +91,11 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
       <nav className="flex-1 px-2 space-y-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
-
-          // The link itself consists of icon + text
           const LinkContent = (
             <Link
               href={item.href}
               className={cn(
                 "flex items-center py-2.5 rounded-lg transition-colors group relative",
-                // Adjust padding based on open state
                 isSidebarOpen ? "px-4" : "justify-center px-2",
                 isActive
                   ? "bg-[#E8F3E8] text-[#1B4D3E]"
@@ -100,14 +103,12 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
               )}
             >
               <item.icon className={cn("h-5 w-5", isSidebarOpen && "mr-3")} />
-              {/* 5. Conditionally hide text labels with transition */}
               <span
                 className={cn(
                   "text-sm font-medium whitespace-nowrap transition-all duration-300",
                   isSidebarOpen
                     ? "opacity-100 translate-x-0"
                     : "opacity-0 -translate-x-2 absolute left-16 hidden"
-                  // Using 'hidden' here for the collapsed state prevents layout shifts
                 )}
               >
                 {item.name}
@@ -115,13 +116,11 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
             </Link>
           );
 
-          // 6. Wrap in Tooltip only if collapsed
           return isSidebarOpen ? (
             <div key={item.name}>{LinkContent}</div>
           ) : (
             <Tooltip key={item.name} delayDuration={0}>
               <TooltipTrigger asChild>{LinkContent}</TooltipTrigger>
-              {/* Tooltip appears to the right of the sidebar */}
               <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">
                 <p>{item.name}</p>
               </TooltipContent>
@@ -144,7 +143,6 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
             <AvatarFallback>CA</AvatarFallback>
           </Avatar>
 
-          {/* User details - Hidden when collapsed */}
           {isSidebarOpen && (
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-semibold truncate">Cartethyia</p>
@@ -154,19 +152,22 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
             </div>
           )}
 
-          {/* Logout button (wrapped in tooltip for collapsed state) */}
+          {/* Logout button (FULL SIZE) */}
           {isSidebarOpen ? (
-             <Button
-             variant="ghost"
-             size="icon"
-             className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0"
-           >
-             <LogOut className="h-5 w-5" />
-           </Button>
-          ) : (
-             <Tooltip delayDuration={0}>
+              <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="icon"
+              className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+           ) : (
+            
+              <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                 <Button
+                <Button
+                  onClick={handleLogout}
                   variant="ghost"
                   size="icon"
                   className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0 mt-2"
@@ -176,7 +177,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
               </TooltipTrigger>
               <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
              </Tooltip>
-          )}
+           )}
 
         </div>
       </div>
