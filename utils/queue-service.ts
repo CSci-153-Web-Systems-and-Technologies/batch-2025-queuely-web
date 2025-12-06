@@ -99,3 +99,79 @@ export function formatTime(dateString: string) {
     minute: "2-digit",
   });
 }
+
+
+
+export async function getActiveQueue(supabase: SupabaseClient, serviceName: string) {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(`
+      *, 
+      user_id (user_id, first_name, preferred_name)  // Join with user profile data
+    `)
+    .eq('service_name', serviceName)
+    .in('status', ['waiting', 'serving'])
+    .order('is_priority', { ascending: false }) // Priority tickets first (True = 1, False = 0)
+    .order('created_at', { ascending: true });   // Then by time joined (Oldest first)
+  
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Generic function to update a ticket's status (used for Complete/Skip).
+ */
+export async function updateTicketStatus(
+  supabase: SupabaseClient,
+  ticketId: string,
+  newStatus: 'completed' | 'cancelled'
+) {
+  const { error, count } = await supabase
+    .from("tickets")
+    .update({ status: newStatus })
+    .eq("ticket_id", ticketId)
+    .select('*', { count: 'exact' });
+
+  if (error) throw error;
+  if (count === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);
+  return true;
+}
+
+
+/**
+ * Moves the queue forward: marks the current serving ticket as 'completed',
+ * and calls the next highest priority 'waiting' ticket.
+ */
+export async function callNextInLine(
+  supabase: SupabaseClient,
+  currentServingTicketId: string | null,
+  serviceName: string
+) {
+  let nextTicket = null;
+
+  // 1. Mark currently serving ticket as 'completed'
+  if (currentServingTicketId) {
+    await updateTicketStatus(supabase, currentServingTicketId, 'completed');
+  }
+
+  // 2. Find the next ticket to serve (sorted by priority and time)
+  // This reuses the logic from getActiveQueue but limits to the first result.
+  const { data: waitingTickets, error } = await supabase
+    .from('tickets')
+    .select('ticket_id') 
+    .eq('service_name', serviceName)
+    .eq('status', 'waiting')
+    .order('is_priority', { ascending: false }) // Priority first
+    .order('created_at', { ascending: true })   // Oldest time second
+    .limit(1);
+
+  if (error) throw error;
+
+  // 3. Update the found ticket to 'serving'
+  if (waitingTickets && waitingTickets.length > 0) {
+    nextTicket = waitingTickets[0];
+    await updateTicketStatus(supabase, nextTicket.ticket_id, 'serving');
+  }
+
+  return nextTicket;
+}
