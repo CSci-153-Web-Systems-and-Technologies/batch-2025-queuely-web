@@ -11,10 +11,12 @@ import { getQueueMetrics, joinQueue, leaveQueue, formatTime } from "@/utils/queu
 
 export default function UserDashboardPage() {
   const supabase = useMemo(() => createClient(), []);
-  const [activeTicket, setActiveTicket] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const user = { name: "Ricky" }; // Replace with real auth user data later
+  const [activeTicket, setActiveTicket] = useState<any | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
+  const [loading, setLoading] = useState(false); // For button actions
+  const [isChecking, setIsChecking] = useState(true); // For initial page load
 
   // --- REFACTORED: METRICS CALCULATOR ---
   const refreshQueueData = useCallback(async (ticket: any) => {
@@ -26,7 +28,7 @@ export default function UserDashboardPage() {
     setActiveTicket((prev: any) => ({
       ...prev,
       ...ticket,
-      id: ticket.id,
+      id: ticket.id || ticket.ticket.id,
       number: ticket.ticket_number,
       currentPosition: metrics.position,
       totalInLine: metrics.totalInLine,
@@ -43,18 +45,18 @@ export default function UserDashboardPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      alert("You must be logged in to join a queue!");
+      alert("You must be logged in!");
       setLoading(false);
       return;
     }
 
     try {
-      // Use the helper function to join
       const newTicket = await joinQueue(supabase, user.id, 'Registrar');
       await refreshQueueData(newTicket);
-    } catch (error) {
-      console.error('Error joining queue:', error);
-      alert('Could not join queue.');
+    } catch (error: any) {
+      console.error('Error joining:', error);
+      // Show the specific error message ("You already have an active ticket.")
+      alert(error.message || 'Could not join queue.');
     } finally {
       setLoading(false);
     }
@@ -79,24 +81,44 @@ export default function UserDashboardPage() {
 
   // --- EXISTING TICKET CHECK ---
   useEffect(() => {
-    const fetchActiveTicket = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const initData = async () => {
+      setIsChecking(true); // Start loading
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsChecking(false);
+        return;
+      }
+
+      // A. Fetch Profile Name
+      const { data: profile } = await supabase
+        .from('users')
+        .select('first_name, preferred_name')
+        .eq('user_id', user.id)
+        .single();
+      if (profile) setUserProfile(profile);
+
+      // B. Check for EXISTING TICKET
+      // This looks for any ticket that is NOT 'completed' or 'cancelled'
       const { data: existingTicket } = await supabase
         .from('tickets')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'waiting')
+        .in('status', ['waiting', 'serving']) // Check active statuses
         .single();
 
+      // If we find one, we immediately calculate stats and show the details card
       if (existingTicket) {
-        refreshQueueData(existingTicket);
+        await refreshQueueData(existingTicket);
       }
+
+      setIsChecking(false); // Stop loading
     };
 
-    fetchActiveTicket();
+    initData();
   }, [supabase, refreshQueueData]);
+
+  const displayName = userProfile?.preferred_name || userProfile?.first_name || "User";
 
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
@@ -105,7 +127,7 @@ export default function UserDashboardPage() {
 
       {/* --- MAIN CONTENT --- */}
       <main className="max-w-md mx-auto space-y-6">
-        <p className="text-lg text-[#1B4D3E] font-medium">Hello, {user.name}</p>
+        <p className="text-lg text-[#1B4D3E] font-medium">Hello, {displayName}</p>
 
         {/* CONDITIONAL RENDERING BASED ON activeTicket STATE */}
         {activeTicket ? (
