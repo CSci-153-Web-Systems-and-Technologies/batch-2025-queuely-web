@@ -130,7 +130,7 @@ export default function DashboardOverviewPage() {
                   contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
                 />
                 {/* The actual bars, colored to match the theme */}
-                <Bar dataKey="volume" fill="#4A8B7F" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="volume" fill="#1B4D3E" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

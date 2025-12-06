@@ -42,7 +42,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
     <aside
       // 3. Dynamically adjust width based on state with smooth transition
       className={cn(
-        "bg-[#0A1D56] text-white flex flex-col shadow-lg transition-all duration-300 ease-in-out z-10 relative",
+        "bg-[#1B4D3E] text-white flex flex-col shadow-lg transition-all duration-300 ease-in-out z-10 relative",
         isSidebarOpen ? "w-64" : "w-[70px] items-center"
       )}
     >
@@ -56,16 +56,16 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
         {/* Logo & Title - Hidden when collapsed */}
         {isSidebarOpen && (
           <div className="flex items-center transition-opacity duration-300">
-            <div className="bg-white rounded-lg p-1.5 mr-3">
+            <div className="rounded-lg p-1.5 mr-3">
               {/* Ensure you have this image or comment it out */}
               <Image
-                src="/images/logo.svg"
+                src="/logos/queuely_light_logo.svg"
                 alt="Admin Logo"
-                width={20}
-                height={20}
+                width={40}
+                height={40}
               />
             </div>
-            <span className="text-lg font-bold whitespace-nowrap">Admin</span>
+            <span className="text-lg text-[30px] font-bold whitespace-nowrap text-[#E8F3E8]">Admin</span>
           </div>
         )}
 
@@ -95,7 +95,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
                 // Adjust padding based on open state
                 isSidebarOpen ? "px-4" : "justify-center px-2",
                 isActive
-                  ? "bg-[#2F55D4] text-white"
+                  ? "bg-[#E8F3E8] text-[#1B4D3E]"
                   : "text-gray-300 hover:bg-white/[0.08] hover:text-white"
               )}
             >
@@ -122,7 +122,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
             <Tooltip key={item.name} delayDuration={0}>
               <TooltipTrigger asChild>{LinkContent}</TooltipTrigger>
               {/* Tooltip appears to the right of the sidebar */}
-              <TooltipContent side="right" className="bg-[#0A1D56] text-white border-white/10 font-medium ml-2">
+              <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">
                 <p>{item.name}</p>
               </TooltipContent>
             </Tooltip>
@@ -174,7 +174,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
                   <LogOut className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#0A1D56] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
+              <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
              </Tooltip>
           )}
 
