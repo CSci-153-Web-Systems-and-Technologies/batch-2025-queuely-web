@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
+import { getTicketHistory } from "@/utils/queue-service";
 
 export default function UserProfilePage() {
   const supabase = useMemo(() => createClient(), []);
@@ -31,14 +32,13 @@ export default function UserProfilePage() {
   });
 
   // History State
-  const [history, setHistory] = useState<any[] | null>(null); // Initialized to null for checking load status
+  const [history, setHistory] = useState<any[] | null>(null); 
 
   // --- 1. FETCH DATA ON LOAD ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Removed setLoading(true)
-        
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) return;
         setUser(authUser);
@@ -55,74 +55,72 @@ export default function UserProfilePage() {
             first_name: profile.first_name || "",
             last_name: profile.last_name || "",
             preferred_name: profile.preferred_name || "",
-            // Use Auth email initially, then update profile fields
             email: authUser.email || "N/A", 
             avatar_url: profile.avatar_url || ""
           });
         }
 
         // C. Get History (Tickets)
-        const { data: tickets } = await supabase
-          .from("tickets")
-          .select("*")
-          .eq("user_id", authUser.id)
-          .order("created_at", { ascending: false });
+        const tickets = await getTicketHistory(supabase, authUser.id);
+            if (tickets) setHistory(tickets);
 
-        if (tickets) setHistory(tickets);
+            } catch (error) {
+              console.error("Error loading profile:", error);
+            }
 
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      } 
-      // Removed setLoading(false)
-    };
+          };
 
     fetchData();
   }, [supabase]);
 
   // --- 2. UPDATE FUNCTION ---
   const handleUpdateProfile = async () => {
-    if (!user) return;
-    setUpdating(true);
+      if (!user) return;
+      setUpdating(true);
 
-    try {
-      const { error } = await supabase
-        .from("users")
-        .update({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          preferred_name: formData.preferred_name,
-        })
-        .eq("user_id", user.id);
+      try {
+        const { error } = await supabase
+          .from("users")
+          .update({
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            preferred_name: formData.preferred_name,
+          })
+          .eq("user_id", user.id);
 
-      if (error) throw error;
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      alert("Failed to update profile. Check RLS policies.");
-    } finally {
-      setUpdating(false);
-    }
+        if (error) throw error;
+        alert("Profile updated successfully!");
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        alert("Failed to update profile. Check RLS policies.");
+      } finally {
+        setUpdating(false);
+      }
   };
 
   // --- HELPER: Handle Input Changes ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+      const { name, value } = e.target;
+      setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-  // --- NON-BLOCKING RENDER ---
-  // The UI is rendered immediately, relying on initial state ("Loading...") 
-  // and updating when the network calls in useEffect complete.
+    if (!user || history === null) { 
+        return (
+            <div className="h-screen flex items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" />
+            </div>
+        );
+  }
   
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
       {/* Header */}
-      <header className="max-w-2xl mx-auto flex items-center justify-between mb-6">
+      <header className="max-w-md  mx-auto flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-[#1B4D3E]">Profile</h1>
         <Button 
             variant="ghost" 
             size="icon" 
-            className="text-[#1B4D3E]"
+            className="text-[#1B4D3E] hover:bg-[#1B4D3E] hover:text-white"
             onClick={() => {
               router.push("/home");
               router.refresh(); 
@@ -133,9 +131,9 @@ export default function UserProfilePage() {
       </header>
 
       <main className="max-w-md mx-auto">
-        <Card className="border-none shadow-lg">
+        <Card className="border-none shadow-lg p-0">
           <CardContent className="p-6">
-            <Tabs defaultValue="personal" className="w-full">
+            <Tabs defaultValue="personal" className="w-full" >
               
               {/* Tabs List */}
               <TabsList className="grid w-full grid-cols-3 bg-[#E8F3E8] mb-6">
@@ -187,7 +185,7 @@ export default function UserProfilePage() {
                       name="first_name"
                       value={formData.first_name}
                       onChange={handleInputChange}
-                      className="bg-[#E8F3E8] border-[#1B4D3E]/20"
+                      className="bg-[#E8F3E8]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -196,7 +194,7 @@ export default function UserProfilePage() {
                       name="last_name"
                       value={formData.last_name}
                       onChange={handleInputChange}
-                      className="bg-[#E8F3E8] border-[#1B4D3E]/20"
+                      className="bg-[#E8F3E8]"
                     />
                   </div>
                 </div>
@@ -207,7 +205,7 @@ export default function UserProfilePage() {
                     name="preferred_name"
                     value={formData.preferred_name}
                     onChange={handleInputChange}
-                    className="bg-[#E8F3E8] border-[#1B4D3E]/20"
+                    className="bg-[#E8F3E8]"
                   />
                   <p className="text-xs text-gray-500">This is the name we will call you by.</p>
                 </div>
@@ -242,9 +240,9 @@ export default function UserProfilePage() {
                     <p className="text-center text-gray-500 py-8">No history yet.</p>
                   ) : (
                     history.map((ticket) => (
-                      <div key={ticket.id} className="bg-[#E8F3E8] p-4 rounded-xl space-y-2">
+                      <div key={ticket.ticket_id} className="bg-[#E8F3E8] p-4 rounded-xl space-y-2">
                         <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-[#1B4D3E]">{ticket.service_name}</h3>
+                          <h3 className="font-bold text-[#1B4D3E]">{ticket.queue_id?.name || 'Unknown Queue'}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             ticket.status === 'completed' ? 'bg-green-100 text-green-700' :
                             ticket.status === 'cancelled' ? 'bg-red-100 text-red-700' :
