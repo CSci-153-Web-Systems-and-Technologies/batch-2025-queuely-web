@@ -4,24 +4,26 @@ import Link from "next/link";
 import Image from "next/image";
 import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client"; // Import Supabase
-import { useRouter } from "next/navigation"; // Import Router for redirect
+import { createClient } from "@/lib/supabase/client"; 
+import { useRouter } from "next/navigation";
 
 export function UserTopbar() {
   const router = useRouter();
   const supabase = createClient();
 
   const handleLogout = async () => {
-    // 1. Sign out from Supabase
-    await supabase.auth.signOut();
+    const confirmed = window.confirm("Are you sure you want to log out?");
     
-    // 2. Redirect to Login Page
-    router.push("/login"); // or "/" depending on your setup
-    router.refresh(); // Ensure the page data clears
+    if (confirmed) {
+      await supabase.auth.signOut();
+    
+      router.push("/login");
+      router.refresh();
+    } 
   };
 
   return (
-    <header className="max-w-2xl mx-auto flex items-center justify-between mb-8">
+    <header className="max-w-md mx-auto flex items-center justify-between mb-8">
       {/* Logo and App Name */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 relative">
@@ -42,7 +44,7 @@ export function UserTopbar() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-[#1B4D3E] hover:bg-[#1B4D3E]/10"
+            className="text-[#1B4D3E] hover:bg-[#1B4D3E] hover:text-white"
           >
             <User className="h-6 w-6" />
             <span className="sr-only">Profile</span>
@@ -54,7 +56,7 @@ export function UserTopbar() {
           onClick={handleLogout} // <--- Added this
           variant="ghost"
           size="icon"
-          className="text-[#1B4D3E] hover:bg-[#1B4D3E]/10"
+          className="text-[#1B4D3E] hover:bg-[#1B4D3E] hover:text-white"
         >
           <LogOut className="h-6 w-6" />
           <span className="sr-only">Logout</span>

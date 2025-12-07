@@ -86,10 +86,14 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
 
   // 5. LOGOUT HANDLER
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // Redirect to the root login page
-    router.push("/"); 
-    router.refresh(); 
+     const confirmed = window.confirm("Are you sure you want to log out?");
+    
+    if (confirmed) {
+      await supabase.auth.signOut();
+      
+      router.push("/");
+      router.refresh();
+    }
   };
 
   if (isLoading) {
@@ -192,55 +196,62 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
 
       {/* User Info Footer */}
       <div className="p-4 mt-auto">
+        
         {isSidebarOpen && <Separator className="mb-4 bg-white/[0.1]" />}
-        <Link 
-            href="/profile" 
-            className={cn("flex items-center transition-all duration-300 group cursor-pointer",
-            isSidebarOpen ? "space-x-3" : "justify-center flex-col space-y-4",
-            // Add hover effect to indicate clickability
-              isSidebarOpen ? "hover:bg-white/10 p-2 rounded-lg -m-2" : "p-0"
-          )}
-        >
-          <Avatar className="border-2 border-white/10">
-            <AvatarImage src={profile?.avatar_url || "https://github.com/shadcn.png"} alt={profile?.name || "Admin"} />
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
+        <div className={cn(
+            "flex mt-auto",
+            isSidebarOpen 
+                ? "items-center justify-between" 
+                : "flex-col items-center space-y-4" // Collapsed: Column, centered, with vertical spacing
+        )}>
+          <Link 
+              href="/profile" 
+              className={cn("flex items-center transition-all duration-300 group cursor-pointer",
+                isSidebarOpen ? "space-x-3" : "justify-center flex-col space-y-4",
+                isSidebarOpen ? "hover:bg-white/10 p-2 rounded-lg -m-2" : "p-0"
+            )}
+          >
+            <Avatar className="border-2 border-white/10">
+              <AvatarImage src={profile?.avatar_url || "https://github.com/shadcn.png"} alt={profile?.name || "Admin"} />
+              <AvatarFallback>{userInitials}</AvatarFallback>
+            </Avatar>
 
-          {isSidebarOpen && (
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-semibold truncate">{profile?.name || "Admin User"}</p>
-              <p className="text-xs text-gray-400 truncate">
-                {profile?.email || "loading..."}
-              </p>
-            </div>
-          )}
-        </Link>
-          {/* Logout button (FULL SIZE) */}
-          {isSidebarOpen ? (
-              <Button
-              onClick={handleLogout}
-              variant="ghost"
-              size="icon"
-              className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
-           ) : (
-            
-              <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
+            {isSidebarOpen && (
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-semibold truncate">{profile?.name || "Admin User"}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {profile?.email || "loading..."}
+                </p>
+              </div>
+            )}
+          </Link>
+            {/* Logout button (FULL SIZE) */}
+            {isSidebarOpen ? (
                 <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  size="icon"
-                  className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0 mt-2"
-                >
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
-             </Tooltip>
-           )}
+                onClick={handleLogout}
+                variant="ghost"
+                size="icon"
+                className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            ) : (
+              
+                <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-400 hover:bg-white/[0.08] hover:text-white shrink-0 mt-2"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
       </div>
     </aside>
   );

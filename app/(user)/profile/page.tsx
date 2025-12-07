@@ -32,14 +32,13 @@ export default function UserProfilePage() {
   });
 
   // History State
-  const [history, setHistory] = useState<any[] | null>(null); // Initialized to null for checking load status
+  const [history, setHistory] = useState<any[] | null>(null); 
 
   // --- 1. FETCH DATA ON LOAD ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Removed setLoading(true)
-        
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) return;
         setUser(authUser);
@@ -76,52 +75,52 @@ export default function UserProfilePage() {
 
   // --- 2. UPDATE FUNCTION ---
   const handleUpdateProfile = async () => {
-    if (!user) return;
-    setUpdating(true);
+      if (!user) return;
+      setUpdating(true);
 
-    try {
-      const { error } = await supabase
-        .from("users")
-        .update({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          preferred_name: formData.preferred_name,
-        })
-        .eq("user_id", user.id);
+      try {
+        const { error } = await supabase
+          .from("users")
+          .update({
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            preferred_name: formData.preferred_name,
+          })
+          .eq("user_id", user.id);
 
-      if (error) throw error;
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      alert("Failed to update profile. Check RLS policies.");
-    } finally {
-      setUpdating(false);
-    }
+        if (error) throw error;
+        alert("Profile updated successfully!");
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        alert("Failed to update profile. Check RLS policies.");
+      } finally {
+        setUpdating(false);
+      }
   };
 
   // --- HELPER: Handle Input Changes ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+      const { name, value } = e.target;
+      setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-  if (!user || history === null) { 
-      return (
-          <div className="h-screen flex items-center justify-center">
-              <Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" />
-          </div>
-      );
+    if (!user || history === null) { 
+        return (
+            <div className="h-screen flex items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" />
+            </div>
+        );
   }
   
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
       {/* Header */}
-      <header className="max-w-2xl mx-auto flex items-center justify-between mb-6">
+      <header className="max-w-md  mx-auto flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-[#1B4D3E]">Profile</h1>
         <Button 
             variant="ghost" 
             size="icon" 
-            className="text-[#1B4D3E]"
+            className="text-[#1B4D3E] hover:bg-[#1B4D3E] hover:text-white"
             onClick={() => {
               router.push("/home");
               router.refresh(); 
@@ -132,9 +131,9 @@ export default function UserProfilePage() {
       </header>
 
       <main className="max-w-md mx-auto">
-        <Card className="border-none shadow-lg">
+        <Card className="border-none shadow-lg p-0">
           <CardContent className="p-6">
-            <Tabs defaultValue="personal" className="w-full">
+            <Tabs defaultValue="personal" className="w-full" >
               
               {/* Tabs List */}
               <TabsList className="grid w-full grid-cols-3 bg-[#E8F3E8] mb-6">
@@ -186,7 +185,7 @@ export default function UserProfilePage() {
                       name="first_name"
                       value={formData.first_name}
                       onChange={handleInputChange}
-                      className="bg-[#E8F3E8] border-[#1B4D3E]/20"
+                      className="bg-[#E8F3E8]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -195,7 +194,7 @@ export default function UserProfilePage() {
                       name="last_name"
                       value={formData.last_name}
                       onChange={handleInputChange}
-                      className="bg-[#E8F3E8] border-[#1B4D3E]/20"
+                      className="bg-[#E8F3E8]"
                     />
                   </div>
                 </div>
@@ -206,7 +205,7 @@ export default function UserProfilePage() {
                     name="preferred_name"
                     value={formData.preferred_name}
                     onChange={handleInputChange}
-                    className="bg-[#E8F3E8] border-[#1B4D3E]/20"
+                    className="bg-[#E8F3E8]"
                   />
                   <p className="text-xs text-gray-500">This is the name we will call you by.</p>
                 </div>
