@@ -3,13 +3,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation"; // 1. IMPORT useRouter
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
   Settings,
   LogOut,
   PanelLeft,
+  Loader2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -21,7 +23,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-// 2. IMPORT Supabase client creator
 import { createClient } from "@/lib/supabase/client"; 
 
 const navItems = [
@@ -35,10 +36,53 @@ interface SidebarProps {
   toggleSidebar: () => void;
 }
 
+interface AdminProfile {
+    email: string;
+    name: string;
+    avatar_url: string | null;
+}
+
 export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter(); // 3. INITIALIZE ROUTER
-  const supabase = createClient(); // 4. INITIALIZE SUPABASE CLIENT
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+
+        if (authUser) {
+            // 1. Fetch profile from public.users table
+            const { data: profileData } = await supabase
+                .from('users')
+                .select('preferred_name, first_name, avatar_url')
+                .eq('user_id', authUser.id)
+                .single();
+
+            // 2. Map data to state
+            if (profileData) {
+                setProfile({
+                    email: authUser.email || "N/A",
+                    name: profileData.preferred_name || profileData.first_name || "Admin User",
+                    avatar_url: profileData.avatar_url,
+                });
+            } else {
+                // Fallback if profile row isn't found
+                setProfile({
+                    email: authUser.email || "N/A",
+                    name: "Admin User",
+                    avatar_url: null,
+                });
+            }
+        }
+        setIsLoading(false);
+    };
+
+    fetchUserData();
+  }, [supabase]);
 
   // 5. LOGOUT HANDLER
   const handleLogout = async () => {
@@ -47,6 +91,23 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
     router.push("/"); 
     router.refresh(); 
   };
+
+  if (isLoading) {
+    return (
+        <aside 
+            className={cn(
+                "bg-[#1B4D3E] text-white flex flex-col shadow-lg duration-300 ease-in-out z-10 p-4",
+                isSidebarOpen ? "w-64" : "w-[70px] items-center"
+            )}
+        >
+            <div className="mt-auto p-4 text-center">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-white/50" />
+            </div>
+        </aside>
+    );
+  }
+
+  const userInitials = profile?.name ? profile.name.split(' ').map(n => n[0]).join('') : 'AD';
   
   return (
     <aside
@@ -132,26 +193,28 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
       {/* User Info Footer */}
       <div className="p-4 mt-auto">
         {isSidebarOpen && <Separator className="mb-4 bg-white/[0.1]" />}
-        <div
-          className={cn(
-            "flex items-center transition-all duration-300",
-            isSidebarOpen ? "space-x-3" : "justify-center flex-col space-y-4"
+        <Link 
+            href="/profile" 
+            className={cn("flex items-center transition-all duration-300 group cursor-pointer",
+            isSidebarOpen ? "space-x-3" : "justify-center flex-col space-y-4",
+            // Add hover effect to indicate clickability
+              isSidebarOpen ? "hover:bg-white/10 p-2 rounded-lg -m-2" : "p-0"
           )}
         >
           <Avatar className="border-2 border-white/10">
-            <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-            <AvatarFallback>CA</AvatarFallback>
+            <AvatarImage src={profile?.avatar_url || "https://github.com/shadcn.png"} alt={profile?.name || "Admin"} />
+            <AvatarFallback>{userInitials}</AvatarFallback>
           </Avatar>
 
           {isSidebarOpen && (
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-semibold truncate">Cartethyia</p>
+              <p className="text-sm font-semibold truncate">{profile?.name || "Admin User"}</p>
               <p className="text-xs text-gray-400 truncate">
-                smolcarte@gmail.com
+                {profile?.email || "loading..."}
               </p>
             </div>
           )}
-
+        </Link>
           {/* Logout button (FULL SIZE) */}
           {isSidebarOpen ? (
               <Button
@@ -178,8 +241,6 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
               <TooltipContent side="right" className="bg-[#1B4D3E] text-white border-white/10 font-medium ml-2">Logout</TooltipContent>
              </Tooltip>
            )}
-
-        </div>
       </div>
     </aside>
   );

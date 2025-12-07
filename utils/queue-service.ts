@@ -251,7 +251,7 @@ export async function getDashboardStats(supabase: SupabaseClient) {
         // Use created_at for simple check if completed_at is NULL for older tickets
         .gte("created_at", today); 
 
-    // 2. 🛑 NEW QUERY: Get TOTAL CUSTOMERS TODAY (Count of all tickets created today, regardless of status)
+    // 2. Get TOTAL CUSTOMERS TODAY (Statuses: completed, cancelled, waiting, serving)
     const { count: totalCustomersCount } = await supabase
         .from("tickets")
         .select("ticket_id", { count: "exact", head: true })
@@ -259,7 +259,7 @@ export async function getDashboardStats(supabase: SupabaseClient) {
         // Check only created_at to count all entries from today
         .gte("created_at", today);
         
-    // Current Queue Length (Waiting + Serving)
+    // 3. Get CURRENT QUEUE LENGTH (Statuses: waiting, serving)
     const { count: currentQueueLength } = await supabase
         .from("tickets")
         .select("ticket_id", { count: "exact", head: true })
