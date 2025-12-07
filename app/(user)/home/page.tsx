@@ -7,7 +7,7 @@ import { Users as UsersIcon, Clock as ClockIcon, Loader2 } from "lucide-react";
 import { UserTopbar } from "@/components/user/topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { getQueueMetrics, joinQueue, leaveQueue, formatTime, getQueueConfig} from "@/utils/queue-service";
+import { getQueueMetrics, joinQueue, leaveQueue, formatTime, getQueueConfig, } from "@/utils/queue-service";
 
 export default function UserDashboardPage() {
   const supabase = useMemo(() => createClient(), []);

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
+import { getTicketHistory } from "@/utils/queue-service";
 
 export default function UserProfilePage() {
   const supabase = useMemo(() => createClient(), []);
@@ -55,26 +56,20 @@ export default function UserProfilePage() {
             first_name: profile.first_name || "",
             last_name: profile.last_name || "",
             preferred_name: profile.preferred_name || "",
-            // Use Auth email initially, then update profile fields
             email: authUser.email || "N/A", 
             avatar_url: profile.avatar_url || ""
           });
         }
 
         // C. Get History (Tickets)
-        const { data: tickets } = await supabase
-          .from("tickets")
-          .select("*")
-          .eq("user_id", authUser.id)
-          .order("created_at", { ascending: false });
+        const tickets = await getTicketHistory(supabase, authUser.id);
+            if (tickets) setHistory(tickets);
 
-        if (tickets) setHistory(tickets);
+            } catch (error) {
+              console.error("Error loading profile:", error);
+            }
 
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      } 
-      // Removed setLoading(false)
-    };
+          };
 
     fetchData();
   }, [supabase]);
@@ -110,9 +105,13 @@ export default function UserProfilePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- NON-BLOCKING RENDER ---
-  // The UI is rendered immediately, relying on initial state ("Loading...") 
-  // and updating when the network calls in useEffect complete.
+  if (!user || history === null) { 
+      return (
+          <div className="h-screen flex items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" />
+          </div>
+      );
+  }
   
   return (
     <div className="min-h-screen bg-[#E8F3E8] p-4 md:p-8">
@@ -244,7 +243,7 @@ export default function UserProfilePage() {
                     history.map((ticket) => (
                       <div key={ticket.ticket_id} className="bg-[#E8F3E8] p-4 rounded-xl space-y-2">
                         <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-[#1B4D3E]">{ticket.service_name}</h3>
+                          <h3 className="font-bold text-[#1B4D3E]">{ticket.queue_id?.name || 'Unknown Queue'}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             ticket.status === 'completed' ? 'bg-green-100 text-green-700' :
                             ticket.status === 'cancelled' ? 'bg-red-100 text-red-700' :
