@@ -72,7 +72,31 @@ export async function joinQueue(
     if (existingTicket) {
       throw new Error("You already have an active ticket.");
     }
+  
+    const { data: queueConfig, error: queueError } = await supabase
+        .from('queues')
+        .select('max_capacity')
+        .eq('id', queueId)
+        .single(); // Use .single() to get an object, not an array
+    
+    if (queueError) {
+        throw new Error("Failed to retrieve queue configuration.");
+    }
+    
+    // 2. Get current queue length (This part is correct)
+    const { count: currentQueueLength } = await supabase
+        .from("tickets")
+        .select("ticket_id", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .in("status", ["waiting", "serving"]);
 
+    // 3. Check Capacity using the correctly fetched value
+    const maxCapacity = queueConfig.max_capacity;
+    
+    if (maxCapacity && currentQueueLength && currentQueueLength >= maxCapacity) {
+        throw new Error(`Queue is full. Max capacity: ${maxCapacity}`);
+    }
+  
     // 2. INSERT new ticket
     const { data, error } = await supabase
       .from("tickets")
@@ -184,7 +208,7 @@ export async function callNextInLine(
   export async function getQueueConfig(supabase: SupabaseClient) {
         const { data, error } = await supabase
           .from('queues')
-          .select('id, name, avg_service_time') // Select relevant columns (name is the display name)
+          .select('id, name, avg_service_time,max_capacity, maintenance_mode') // Select relevant columns (name is the display name)
           .single();
         
         if (error) throw error;
@@ -195,12 +219,12 @@ export async function callNextInLine(
  * Updates the global system settings.
  */
 export async function updateQueueConfig(supabase: SupabaseClient, newConfig: any) {
-      const CONFIG_ID = '00000000-0000-0000-0000-000000000001'; 
+      const { id, ...updates } = newConfig; 
       
       const { error } = await supabase
         .from('queues') 
-        .update(newConfig)
-        .eq('id', CONFIG_ID); 
+        .update(updates) 
+        .eq('id', id); 
       
       if (error) throw error;
       return true;

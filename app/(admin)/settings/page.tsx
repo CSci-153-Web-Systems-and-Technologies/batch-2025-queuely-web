@@ -17,11 +17,13 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // State for all setting fields
+
   const [queueConfigForm, setQueueConfigForm] = useState({
+    id: '',
     name: '',
     avg_service_time: 5,
     maintenance_mode: false,
+    max_capacity: 0,
   });
 
   // --- FETCH SETTINGS ---
@@ -30,9 +32,11 @@ export default function SettingsPage() {
       try {
         const data = await getQueueConfig(supabase);
         setQueueConfigForm({
+          id: data.id,
           name: data.name,
           avg_service_time: data.avg_service_time,
           maintenance_mode: data.maintenance_mode,
+          max_capacity: data.max_capacity || 0,
         });
       } catch (error) {
         console.error("Failed to fetch settings:", error);
@@ -61,7 +65,12 @@ export default function SettingsPage() {
   // --- INPUT HANDLER ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setQueueConfigForm(prev => ({ ...prev, [id]: value }));
+    if (id === 'avg_service_time' || id === 'max_capacity') {
+        const numericValue = parseInt(value, 10) || 0;
+        setQueueConfigForm(prev => ({ ...prev, [id]: numericValue }));
+    } else {
+        setQueueConfigForm(prev => ({ ...prev, [id]: value }));
+    }
   };
 
   if (loading) {
@@ -152,16 +161,22 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="max-queue">Maximum Queue Length</Label>
-                  <Input id="max-queue" placeholder="e.g., 100" className="bg-[#E8F3E8] border-none" />
+                  <Label htmlFor="max_capacity">Maximum Queue Length</Label>
+                  <Input
+                    id="max_capacity"
+                    placeholder="e.g., 100"
+                    onChange={handleInputChange}
+                    value={queueConfigForm.max_capacity}
+                    className="bg-[#E8F3E8] border-none"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="avg-service_time">Average Service Time (minutes)</Label>
+                  <Label htmlFor="avg_service_time">Average Service Time (minutes)</Label>
                   <Input 
-                    id="avg-service_time" 
+                    id="avg_service_time"
                     placeholder="e.g., 15" 
                     value={queueConfigForm.avg_service_time}
-                    onChange={(e) => setQueueConfigForm(prev => ({...prev, avg_service_time_mins: Number(e.target.value)}))}
+                    onChange={handleInputChange}
                     className="bg-[#E8F3E8] border-none" 
                   />
                 </div>

@@ -52,6 +52,7 @@ export default function SignupPage() {
             first_name: 'New', 
             last_name: 'User', 
             preferred_name: 'User', 
+            profile_url: null,
         });
 
         if (profileError) {
