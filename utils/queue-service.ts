@@ -2,26 +2,24 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
 const AVG_WAIT_TIME_MINS = 5; // Average service time per ticket in minutes
-/**
- * Calculates a specific ticket's position and estimated wait time.
- */
+
 export async function getQueueMetrics(
     supabase: SupabaseClient,
-    serviceName: string,
+    queueId: string,
     ticketCreatedAt: string
     ) {
     // 1. Get Total in Line
     const { count: totalCount } = await supabase
     .from("tickets")
     .select("*", { count: "exact", head: true })
-    .eq("service_name", serviceName)
+    .eq("queue_id", queueId)
     .eq("status", "waiting");
 
   // 2. Get Position
   const { count: peopleAhead } = await supabase
     .from("tickets")
     .select("*", { count: "exact", head: true })
-    .eq("service_name", serviceName)
+    .eq("queue_id", queueId)
     .eq("status", "waiting")
     .lt("created_at", ticketCreatedAt);
 
@@ -46,7 +44,7 @@ export async function getQueueMetrics(
 export async function joinQueue(
   supabase: SupabaseClient,
   userId: string,
-  serviceName: string
+  queueId: string
 ) {
   // 1. CHECK for existing ticket
   const { data: existingTicket } = await supabase
@@ -66,7 +64,7 @@ export async function joinQueue(
     .insert([
       {
         user_id: userId,
-        service_name: serviceName,
+        queue_id: queueId,
         status: "waiting",
         is_priority: false,
       },
@@ -85,7 +83,7 @@ export async function leaveQueue(supabase: SupabaseClient, ticketId: string) {
   const { error } = await supabase
     .from("tickets")
     .update({ status: "cancelled" })
-    .eq("ticket_id", ticketId); // <--- CHANGED THIS from 'id' to 'ticket_id'
+    .eq("ticket_id", ticketId);
 
   if (error) throw error;
   return true;
@@ -100,14 +98,14 @@ export function formatTime(dateString: string) {
 
 
 
-export async function getActiveQueue(supabase: SupabaseClient, serviceName: string) {
+export async function getActiveQueue(supabase: SupabaseClient, queueId: string) {
     const { data, error } = await supabase
       .from('tickets')
       .select(`
         *, 
         user_id(first_name, preferred_name)
       `)
-      .eq('service_name', serviceName) 
+      .eq('queue_id', queueId) 
       .in('status', ['waiting', 'serving'])
       .order('is_priority', { ascending: false })
       .order('created_at', { ascending: true });
@@ -143,7 +141,7 @@ export async function updateTicketStatus(
 export async function callNextInLine(
   supabase: SupabaseClient,
   currentServingTicketId: string | null,
-  serviceName: string
+  queueId: string
 ) {
   let nextTicket = null;
 
@@ -157,7 +155,7 @@ export async function callNextInLine(
   const { data: waitingTickets, error } = await supabase
     .from('tickets')
     .select('ticket_id') 
-    .eq('service_name', serviceName)
+    .eq('queue_id', queueId)
     .eq('status', 'waiting')
     .order('is_priority', { ascending: false }) // Priority first
     .order('created_at', { ascending: true })   // Oldest time second
@@ -174,10 +172,10 @@ export async function callNextInLine(
   return nextTicket;
 }
 
-export async function getSettings(supabase: SupabaseClient) {
+export async function getQueueConfig(supabase: SupabaseClient) {
   const { data, error } = await supabase
-    .from('settings')
-    .select('*')
+    .from('queues')
+    .select('id, name, avg_service_time') // Select relevant columns (name is the display name)
     .single();
   
   if (error) throw error;
@@ -187,13 +185,12 @@ export async function getSettings(supabase: SupabaseClient) {
 /**
  * Updates the global system settings.
  */
-export async function updateSettings(supabase: SupabaseClient, newSettings: any) {
-  // Use the fixed ID to ensure we update the one and only config row
+export async function updateQueueConfig(supabase: SupabaseClient, newConfig: any) {
   const CONFIG_ID = '00000000-0000-0000-0000-000000000001'; 
   
   const { error } = await supabase
-    .from('settings')
-    .update(newSettings)
+    .from('queues') 
+    .update(newConfig)
     .eq('id', CONFIG_ID); 
   
   if (error) throw error;

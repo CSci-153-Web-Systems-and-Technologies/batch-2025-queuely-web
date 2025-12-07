@@ -1,4 +1,4 @@
-// src/app/(user)/page.tsx
+// src/app/(user)/home/page.tsx
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
@@ -7,11 +7,11 @@ import { Users as UsersIcon, Clock as ClockIcon, Loader2 } from "lucide-react";
 import { UserTopbar } from "@/components/user/topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { getQueueMetrics, joinQueue, leaveQueue, formatTime, getSettings } from "@/utils/queue-service";
+import { getQueueMetrics, joinQueue, leaveQueue, formatTime, getQueueConfig} from "@/utils/queue-service";
 
 export default function UserDashboardPage() {
   const supabase = useMemo(() => createClient(), []);
-  const [settings, setSettings] = useState<any>(null); 
+  const [queueConfig, setQueueConfig] = useState<any>(null); 
   const [userProfile, setUserProfile] = useState<any>(null);
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [loading, setLoading] = useState(false); // For button actions
@@ -23,12 +23,13 @@ export default function UserDashboardPage() {
     if (!ticket) return;
 
     // Use the helper function instead of raw Supabase queries
-    const metrics = await getQueueMetrics(supabase, ticket.service_name, ticket.created_at);
+    const serviceIdentifier = ticket.queue_id;
+    const metrics = await getQueueMetrics(supabase, serviceIdentifier, ticket.created_at);
 
     setActiveTicket((prev: any) => ({
       ...prev,
       ...ticket,
-      id: ticket.ticket_id || ticket.id, // Handle both ID naming conventions
+      id: ticket.ticket_id || ticket.id,
       number: ticket.ticket_number,
       currentPosition: metrics.position,
       totalInLine: metrics.totalInLine,
@@ -45,14 +46,14 @@ export default function UserDashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       // Check 1: User & Global Settings Loaded
-      if (!user || !settings) { 
+      if (!user || !queueConfig) { 
           alert("System data is initializing. Please wait a moment.");
           setLoading(false);
           return;
       }
 
       // CHECK 2: Is the Service Name configured? 
-      if (!settings.company_name || settings.company_name.length < 3) {
+      if (!queueConfig.id|| !queueConfig.name) {
           alert("The queue service name has not been configured by an administrator yet.");
           setLoading(false);
           return;
@@ -60,7 +61,7 @@ export default function UserDashboardPage() {
 
       try {
           // Pass the dynamic Company Name as the service name
-          const newTicket = await joinQueue(supabase, user.id, settings.company_name);
+          const newTicket = await joinQueue(supabase, user.id, queueConfig.id);
           await refreshQueueData(newTicket);
       } catch (error: any) {
           console.error('Error joining:', error);
@@ -95,9 +96,8 @@ export default function UserDashboardPage() {
       
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Fetch Settings FIRST
-      const currentSettings = await getSettings(supabase);
-      if (isMounted) setSettings(currentSettings); // <--- New: Set Settings State
+      const currentQueueConfig = await getQueueConfig(supabase);
+      if (isMounted) setQueueConfig(currentQueueConfig);
 
       if (!user) {
         if (isMounted) setIsChecking(false);
@@ -109,17 +109,15 @@ export default function UserDashboardPage() {
         .from('users')
         .select('first_name, preferred_name')
         .eq('user_id', user.id)
-        .maybeSingle(); // <--- This prevents crashing if the row doesn't exist
+        .maybeSingle();
 
       if (isMounted && profile) {
         setUserProfile(profile);
       } else if (isMounted) {
-         // If no profile is found (or RLS blocked it), ensure name is reset/null
          setUserProfile(null); 
       }
 
       // B. CRITICAL: Check for Active Ticket
-      // The queue logic uses the company name as the service name now
       const { data: existingTicket } = await supabase
         .from('tickets')
         .select('*')
@@ -172,10 +170,10 @@ export default function UserDashboardPage() {
       <main className="max-w-md mx-auto space-y-6">
         <p className="text-lg text-[#1B4D3E] font-medium">Hello, {displayName}</p>
 
-        {settings && activeTicket && (
+        {queueConfig && activeTicket && (
           <p className="text-sm text-gray-600 font-medium text-center">
             You are currently queuing for: 
-            <span className="text-[#1B4D3E] font-bold"> {settings.company_name}</span>
+            <span className="text-[#1B4D3E] font-bold"> {queueConfig.name}</span>
           </p>
       )}
 

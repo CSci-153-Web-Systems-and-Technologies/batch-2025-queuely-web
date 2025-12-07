@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Save, Loader2 } from "lucide-react";
-// Import helper functions
-import { getSettings, updateSettings } from "@/utils/queue-service";
+import { getQueueConfig, updateQueueConfig } from "@/utils/queue-service";
 
 export default function SettingsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -19,21 +18,20 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   
   // State for all setting fields
-  const [settingsForm, setSettingsForm] = useState({
-    company_name: '',
-    avg_service_time_mins: 5,
+  const [queueConfigForm, setQueueConfigForm] = useState({
+    name: '',
+    avg_service_time: 5,
     maintenance_mode: false,
-    // Add other fields as needed for the form
   });
 
   // --- FETCH SETTINGS ---
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await getSettings(supabase);
-        setSettingsForm({
-          company_name: data.company_name,
-          avg_service_time_mins: data.avg_service_time_mins,
+        const data = await getQueueConfig(supabase);
+        setQueueConfigForm({
+          name: data.name,
+          avg_service_time: data.avg_service_time,
           maintenance_mode: data.maintenance_mode,
         });
       } catch (error) {
@@ -50,7 +48,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       // Send the entire form data to the update helper
-      await updateSettings(supabase, settingsForm); 
+      await updateQueueConfig(supabase, queueConfigForm); 
       alert("Settings saved successfully!");
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -63,7 +61,7 @@ export default function SettingsPage() {
   // --- INPUT HANDLER ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setSettingsForm(prev => ({ ...prev, [id]: value }));
+    setQueueConfigForm(prev => ({ ...prev, [id]: value }));
   };
 
   if (loading) {
@@ -110,14 +108,13 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="company-name">Company Name</Label>
                 <Input 
-                  id="company_name" 
+                  id="name" 
                   placeholder="Enter company name" 
-                  value={settingsForm.company_name}
+                  value={queueConfigForm.name}
                   onChange={handleInputChange}
                   className="bg-[#E8F3E8] border-none" 
                 />
               </div>
-              {/* NOTE: You'll implement the other static fields (Working Hours, etc.) later */}
               
               <div className="flex items-center justify-between space-x-2 border p-4 rounded-lg bg-[#E8F3E8] border-none">
                 <div className="space-y-0.5">
@@ -127,8 +124,8 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <Switch 
-                  checked={settingsForm.maintenance_mode} 
-                  onCheckedChange={(checked) => setSettingsForm(prev => ({...prev, maintenance_mode: checked}))}
+                  checked={queueConfigForm.maintenance_mode} 
+                  onCheckedChange={(checked) => setQueueConfigForm(prev => ({...prev, maintenance_mode: checked}))}
                 />
               </div>
             </CardContent>
@@ -160,12 +157,12 @@ export default function SettingsPage() {
                   <Input id="max-queue" placeholder="e.g., 100" className="bg-[#E8F3E8] border-none" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="avg-service">Average Service Time (minutes)</Label>
+                  <Label htmlFor="avg-service_time">Average Service Time (minutes)</Label>
                   <Input 
-                    id="avg-service" 
+                    id="avg-service_time" 
                     placeholder="e.g., 15" 
-                    value={settingsForm.avg_service_time_mins}
-                    onChange={(e) => setSettingsForm(prev => ({...prev, avg_service_time_mins: Number(e.target.value)}))}
+                    value={queueConfigForm.avg_service_time}
+                    onChange={(e) => setQueueConfigForm(prev => ({...prev, avg_service_time_mins: Number(e.target.value)}))}
                     className="bg-[#E8F3E8] border-none" 
                   />
                 </div>
