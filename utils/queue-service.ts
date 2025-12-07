@@ -225,3 +225,58 @@ export async function getTicketHistory(supabase: SupabaseClient, userId: string)
     if (error) throw error;
     return data;
 }
+
+export async function getDashboardStats(supabase: SupabaseClient) {
+    // We need the queue ID for filtering and the average service time for calculations.
+    const { data: queueConfig } = await supabase
+        .from('queues')
+        .select('id, avg_service_time')
+        .single();
+
+    if (!queueConfig) {
+        throw new Error("Queue configuration not found.");
+    }
+
+    const queueId = queueConfig.id;
+    const avgServiceTime = queueConfig.avg_service_time || 5; 
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // 1. Get COUNT OF COMPLETED SERVICES (Status: completed, Created Today)
+    const { count: completedServicesCount } = await supabase
+        .from("tickets")
+        .select("ticket_id", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .eq("status", "completed")
+        // Use created_at for simple check if completed_at is NULL for older tickets
+        .gte("created_at", today); 
+
+    // 2. 🛑 NEW QUERY: Get TOTAL CUSTOMERS TODAY (Count of all tickets created today, regardless of status)
+    const { count: totalCustomersCount } = await supabase
+        .from("tickets")
+        .select("ticket_id", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        // Check only created_at to count all entries from today
+        .gte("created_at", today);
+        
+    // Current Queue Length (Waiting + Serving)
+    const { count: currentQueueLength } = await supabase
+        .from("tickets")
+        .select("ticket_id", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .in("status", ["waiting", "serving"]);
+
+    // Average Wait Time (Simple estimate based on current queue)
+    const estimatedWaitMinutes = (currentQueueLength || 0) * avgServiceTime;
+
+    return {
+        // FIX: Use the new totalCustomersCount
+        totalCustomersToday: totalCustomersCount || 0,
+        // FIX: Use the completedServicesCount
+        completedServices: completedServicesCount || 0, 
+        currentQueueLength: currentQueueLength || 0,
+        averageWaitTime: estimatedWaitMinutes > 60 
+            ? `${Math.round(estimatedWaitMinutes / 60)} hrs` 
+            : `${estimatedWaitMinutes} mins`,
+    };
+}
