@@ -27,64 +27,52 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // 4. The function that handles form submission
-  const handleLogin = async (e: React.FormEvent) => {
+ const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
 
-    // 1. Log in (Authentication)
+    // 1. Log in (Authentication - ONLY ONE CALL)
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
+        email: email,
+        password: password,
     });
 
     if (authError) {
-      setErrorMessage(authError.message);
-      setIsLoading(false);
-      return;
+        setErrorMessage(authError.message);
+        setIsLoading(false);
+        return;
     }
 
     // 2. If login successful, fetch user role (Authorization)
     if (authData.user) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('user_id', authData.user.id)
-        .single();
+        // --- NOTE: If you decide to rely 100% on middleware, you can skip this profile fetch ---
+        // For a seamless Admin redirect, keeping this client-side check is often better UX.
+        const { data: profileData, error: profileError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('user_id', authData.user.id)
+            .single();
 
-      if (profileError) {
-         // Handle edge case where auth succeeded but profile fetch failed
-         setErrorMessage("Could not fetch user role.");
-         await supabase.auth.signOut(); // Sign them out if we can't determine role
-         setIsLoading(false);
-         return;
-      }
+        if (profileError) {
+            setErrorMessage("Could not fetch user role. Check RLS on 'users' table.");
+            await supabase.auth.signOut();
+            setIsLoading(false);
+            return;
+        }
 
-      // 3. Redirect based on role
-      router.refresh(); // Refresh server components
-      if (profileData?.role === 'admin') {
-        router.push("/dashboard");
-      } else {
-        router.push("/home");
-      }
+        // 3. Definitive Redirect based on role
+        router.refresh(); // Important: Refreshes server components to pick up new session
+        
+        if (profileData?.role === 'admin') {
+            router.push("/dashboard");
+        } else {
+            router.push("/home");
+        }
     }
 
-    // Call Supabase Auth
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-
-    if (error) {
-      // If error, show message and stop loading
-      setErrorMessage(error.message);
-      setIsLoading(false);
-    } else {
-      // If success, redirect to dashboard
-      // Router refresh ensures server components re-run to check auth state
-      router.refresh();
-    }
-  };
+    setIsLoading(false); // Ensure loading state is turned off after all redirects/errors
+};
 
   return (
     // Main Container: Overall light green background
