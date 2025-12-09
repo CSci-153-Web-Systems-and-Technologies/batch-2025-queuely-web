@@ -156,62 +156,87 @@ export async function getActiveQueue(supabase: SupabaseClient, queueId: string) 
  * Generic function to update a ticket's status (used for Complete/Skip).
  */
 export async function updateTicketStatus(
-  supabase: SupabaseClient,
-  ticketId: string,
-  newStatus: 'completed' | 'cancelled'
-) {
-  const { error, count } = await supabase
-    .from("tickets")
-    .update({ status: newStatus })
-    .eq("ticket_id", ticketId)
-    .select('*', { count: 'exact' });
+    supabase: SupabaseClient,
+    ticketId: string,
+    newStatus: 'completed' | 'cancelled' | 'serving' | 'waiting'
+  ) {
+    const updates: any = { status: newStatus };
+    
+    if (newStatus === 'completed') {
+      updates.completed_at = new Date().toISOString(); 
+    }
+    
+    // NOTE: If status is 'waiting' (for rollback), created_at should be updated too.
+    if (newStatus === 'waiting') {
+        updates.created_at = new Date().toISOString();
+    }
+    
+    const { error, count } = await supabase
+      .from("tickets")
+      .update(updates)
+      .eq("ticket_id", ticketId)
+      .select('*', { count: 'exact' });
 
-  if (error) throw error;
-  if (count === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);
-  return true;
+    if (error) throw error;
+    if (count === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);
+    return true;
 }
 
 
 export async function callNextInLine(
-      supabase: SupabaseClient,
-      currentServingTicketId: string | null,
-      queueId: string
-    ) {
-      let nextTicket = null;
-
-      // 1. Mark currently serving ticket as 'completed'
-      if (currentServingTicketId) {
-        await updateTicketStatus(supabase, currentServingTicketId, 'completed');
-      }
-
+    supabase: SupabaseClient,
+    queueId: string,
+    // Add an optional flag to override auto_advance (e.g., if admin manually clicks "Call Next")
+    forceAdvance: boolean = false 
+) {
+    // --- STEP 1: RETRIEVE CONFIGURATION ---
+    const config = await getQueueConfig(supabase);
+    const autoAdvanceEnabled = config.auto_advance;
     
-      const { data: waitingTickets, error } = await supabase
+    // Check if there is already someone serving.
+    const { count: servingCount } = await supabase
+        .from("tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .eq("status", "serving");
+
+    // If someone is already serving AND auto-advance is disabled, we do nothing.
+    // We only proceed if no one is serving OR if auto-advance is on/forced.
+    if (servingCount > 0 && !autoAdvanceEnabled && !forceAdvance) {
+        return null;
+    }
+
+    // --- STEP 2: FIND THE NEXT WAITING TICKET ---
+    const { data: waitingTickets, error } = await supabase
         .from('tickets')
         .select('ticket_id') 
         .eq('queue_id', queueId)
         .eq('status', 'waiting')
         .order('is_priority', { ascending: false }) // Priority first
-        .order('created_at', { ascending: true })   // Oldest time second
+        .order('created_at', { ascending: true })   // Oldest time second
         .limit(1);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // 3. Update the found ticket to 'serving'
-      if (waitingTickets && waitingTickets.length > 0) {
-        nextTicket = waitingTickets[0];
+    // --- STEP 3: ADVANCE THE TICKET ---
+    if (waitingTickets && waitingTickets.length > 0) {
+        const nextTicket = waitingTickets[0];
+        // Use the updated utility to mark it as serving
         await updateTicketStatus(supabase, nextTicket.ticket_id, 'serving');
-      }
+        return nextTicket;
+    }
 
-      return nextTicket;
-  }
+    return null; // Queue is empty
+}
 
   export async function getQueueConfig(supabase: SupabaseClient) {
         const { data, error } = await supabase
           .from('queues')
-          .select('id, name, avg_service_time,max_capacity, maintenance_mode') // Select relevant columns (name is the display name)
-          .single();
-        
-        if (error) throw error;
+          .select('id, name, avg_service_time,max_capacity, maintenance_mode, auto_advance, auto_rollback') // Select relevant columns (name is the display name)
+          .maybeSingle(); 
+          
+    
+        if (error && error.code !== 'PGRST116') throw error;
         return data;
 }
 
@@ -251,10 +276,10 @@ export async function getTicketHistory(supabase: SupabaseClient, userId: string)
 }
 
 export async function getDashboardStats(supabase: SupabaseClient) {
-    // We need the queue ID for filtering and the average service time for calculations.
+    // 1. Fetch Queue Configuration (for ID)
     const { data: queueConfig } = await supabase
         .from('queues')
-        .select('id, avg_service_time')
+        .select('id') // Only need the ID for filtering
         .single();
 
     if (!queueConfig) {
@@ -262,45 +287,120 @@ export async function getDashboardStats(supabase: SupabaseClient) {
     }
 
     const queueId = queueConfig.id;
-    const avgServiceTime = queueConfig.avg_service_time || 5; 
-
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     
-    // 1. Get COUNT OF COMPLETED SERVICES (Status: completed, Created Today)
+    // 2. Fetch required counts (as originally defined)
+    
+    // COUNT OF COMPLETED SERVICES (Status: completed, Created Today)
     const { count: completedServicesCount } = await supabase
         .from("tickets")
         .select("ticket_id", { count: "exact", head: true })
         .eq("queue_id", queueId)
         .eq("status", "completed")
-        // Use created_at for simple check if completed_at is NULL for older tickets
         .gte("created_at", today); 
 
-    // 2. Get TOTAL CUSTOMERS TODAY (Statuses: completed, cancelled, waiting, serving)
+    // TOTAL CUSTOMERS TODAY (Count all statuses created today)
     const { count: totalCustomersCount } = await supabase
         .from("tickets")
         .select("ticket_id", { count: "exact", head: true })
         .eq("queue_id", queueId)
-        // Check only created_at to count all entries from today
         .gte("created_at", today);
         
-    // 3. Get CURRENT QUEUE LENGTH (Statuses: waiting, serving)
+    // CURRENT QUEUE LENGTH (Statuses: waiting, serving)
     const { count: currentQueueLength } = await supabase
         .from("tickets")
         .select("ticket_id", { count: "exact", head: true })
         .eq("queue_id", queueId)
         .in("status", ["waiting", "serving"]);
 
-    // Average Wait Time (Simple estimate based on current queue)
-    const estimatedWaitMinutes = (currentQueueLength || 0) * avgServiceTime;
+    // --- START NEW AVERAGE WAIT TIME CALCULATION ---
+    
+    // 3. Fetch all completed tickets from today with necessary timestamps
+    const { data: completedTickets, error: fetchError } = await supabase
+        .from("tickets")
+        .select("created_at, completed_at")
+        .eq("queue_id", queueId)
+        .eq("status", "completed")
+        .gte("created_at", today)
+        .not('completed_at', 'is', null); // Must have a completed_at time
+
+    if (fetchError) throw fetchError;
+
+    let totalWaitTimeSeconds = 0;
+    const actualCompletedCount = completedTickets.length;
+
+    if (actualCompletedCount > 0) {
+        completedTickets.forEach(ticket => {
+            const joinedTime = new Date(ticket.created_at).getTime();
+            const completionTime = new Date(ticket.completed_at).getTime();
+            
+            // Calculate wait time (in milliseconds)
+            const waitTimeMs = completionTime - joinedTime;
+            
+            // Sum up total wait time in seconds
+            totalWaitTimeSeconds += waitTimeMs / 1000;
+        });
+    }
+
+    // 4. Calculate Average Wait Time
+    const averageWaitTimeMinutes = 
+        actualCompletedCount > 0
+        ? Math.round((totalWaitTimeSeconds / actualCompletedCount) / 60)
+        : 0;
+
+    const averageWaitTimeDisplay = averageWaitTimeMinutes > 60 
+        ? `${Math.round(averageWaitTimeMinutes / 60)} hrs` 
+        : `${averageWaitTimeMinutes} mins`;
+    
+    // --- END NEW AVERAGE WAIT TIME CALCULATION ---
+
 
     return {
-        // FIX: Use the new totalCustomersCount
         totalCustomersToday: totalCustomersCount || 0,
-        // FIX: Use the completedServicesCount
         completedServices: completedServicesCount || 0, 
         currentQueueLength: currentQueueLength || 0,
-        averageWaitTime: estimatedWaitMinutes > 60 
-            ? `${Math.round(estimatedWaitMinutes / 60)} hrs` 
-            : `${estimatedWaitMinutes} mins`,
+        averageWaitTime: averageWaitTimeDisplay, 
     };
+}
+
+
+export async function getWeeklyQueueVolume(supabase: SupabaseClient, queueId: string) {
+    const dataPoints = [];
+    const today = new Date();
+    
+    // Helper to format the date as YYYY-MM-DD
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+    // Array of day names for chart labels
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i); 
+
+        // Set the start of the day (e.g., 2025-12-05 00:00:00)
+        const dateStart = formatDate(date);
+        
+        // Set the end of the day (the start of the next day)
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        const dateEnd = formatDate(nextDate);
+
+        // Query the count of all tickets created within this 24-hour period
+        const { count } = await supabase
+            .from('tickets')
+            .select('ticket_id', { count: 'exact', head: true })
+            .eq('queue_id', queueId)
+            .gte('created_at', dateStart)
+            .lt('created_at', dateEnd);
+
+        dataPoints.push({
+            name: dayNames[date.getDay()], // Get the weekday name
+            volume: count || 0,
+        });
+    }
+
+    // Since the loop runs backward (from 6 days ago to today), the dataPoints array 
+    // is already in the correct order for chronological plotting.
+    return dataPoints;
 }

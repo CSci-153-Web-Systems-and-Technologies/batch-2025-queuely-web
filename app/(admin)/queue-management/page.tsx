@@ -87,12 +87,18 @@
 
         // 1. Call Next / Start Service
         const handleCallNext = async () => {
-            if (!queueConfig) return;
+            if (!queueConfig || !queueConfig.id) {
+                // Stop action and alert admin if the configuration is invalid or missing
+                alert("System Configuration Error: Please ensure the Queue Service is configured in the Settings tab.");
+                console.error("Attempted to call next ticket before queueConfig.id was loaded or configured.");
+                return; 
+            }
+
             setActionLoading(true);
             try {
                 const currentId = servingTicket?.ticket_id || servingTicket?.id || null;
 
-                await callNextInLine(supabase, currentId, queueConfig.id);
+                await callNextInLine(supabase, queueConfig.id);
 
                 await fetchQueue(queueConfig.id); 
             } catch (error) {
@@ -105,12 +111,27 @@
 
         // 2. Complete Service (Completes the currently serving ticket)
         const handleCompleteService = async () => {
-            if (!servingTicket) return alert("No one is currently being served.");
+            if (!servingTicket || !queueConfig) return alert("No one is currently being served or config is missing.");
             setActionLoading(true);
+
             try {
+                // Step 1: Mark the current ticket as completed
                 await updateTicketStatus(supabase, servingTicket.ticket_id || servingTicket.id, 'completed');
-                // Refresh using the current settings name
+                
+                // --- STEP 2: CHECK AUTO-ADVANCE FLAG ---
+                if (queueConfig.auto_advance) {
+                    // Automatically call the next person in line
+                    // We only need to pass the queueId to callNextInLine now.
+                    await callNextInLine(supabase, queueConfig.id);
+                } else {
+                    // If auto-advance is OFF, the service is done, but no one is called.
+                    // We just need to clear the serving ticket display.
+                    setServingTicket(null); 
+                }
+
+                // Step 3: Refresh the queue to show changes
                 await fetchQueue(queueConfig.id); 
+
             } catch (error) {
                 console.error("Error completing service:", error);
                 alert("Failed to complete service.");
@@ -121,13 +142,30 @@
 
         // 3. Skip/Cancel Current Ticket
         const handleSkipTicket = async () => {
-            if (!servingTicket) return alert("No one is currently being served to skip.");
+            if (!servingTicket || !queueConfig) return alert("No one is currently being served or config is missing.");
             setActionLoading(true);
+            
+            const ticketId = servingTicket.ticket_id || servingTicket.id;
+
             try {
-                await updateTicketStatus(supabase, servingTicket.ticket_id || servingTicket.id, 'cancelled');
+                // --- STEP 1: CHECK AUTO-ROLLBACK FLAG ---
+                if (queueConfig.auto_rollback) {
+                    // Rollback: Put ticket back to the end of the queue
+                    await updateTicketStatus(supabase, ticketId, 'waiting');
+                    alert(`Ticket ${servingTicket.ticket_number} rolled back to the end of the queue.`);
+                } else {
+                    // Standard Skip: Mark as cancelled/removed
+                    await updateTicketStatus(supabase, ticketId, 'cancelled');
+                    alert(`Ticket ${servingTicket.ticket_number} cancelled.`);
+                }
                 
-                // Move the queue forward automatically after skipping
-                await handleCallNext();
+                // --- STEP 2: ADVANCE THE QUEUE ---
+                // Always call the next ticket after a skip, using forceAdvance=true 
+                // to ignore the auto_advance setting, as an admin explicitly wants the queue to move.
+                await callNextInLine(supabase, queueConfig.id, true);
+
+                // Step 3: Refresh the queue
+                await fetchQueue(queueConfig.id); 
 
             } catch (error) {
                 console.error("Error skipping ticket:", error);
@@ -163,10 +201,14 @@
                     <div className="flex items-center space-x-4">
                         <span className="font-medium">Queue Controls</span>
                         
-                        <Button onClick={handleCallNext} disabled={actionLoading || totalWaiting === 0} className="bg-[#1B4D3E] hover:bg-[#153a2f]">
-                            {actionLoading && !servingTicket ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                            Call Next 
-                        </Button>
+                            <Button 
+                                onClick={handleCallNext} 
+                                disabled={actionLoading || totalWaiting === 0 || servingTicket} 
+                                className="bg-[#1B4D3E] hover:bg-[#153a2f]"
+                            >
+                                {actionLoading && !servingTicket ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                                Call Next 
+                            </Button>
                         
                         <Button onClick={handleCompleteService} disabled={actionLoading || !servingTicket} variant="outline" className="text-green-600 border-green-600 hover:bg-green-50">
                             {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
