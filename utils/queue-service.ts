@@ -1,59 +1,62 @@
 // src/lib/queue-service.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { SupabaseClient } from "@supabase/supabase-js";
 
-const AVG_WAIT_TIME_MINS = 5; // Average service time per ticket in minutes
-
 export async function getQueueMetrics(
-      supabase: SupabaseClient,
-      queueId: string,
-      ticketCreatedAt: string
-  ) {
-      // 1. Count the person currently being served (if any).
-      // This is always 1 or 0, and they are always considered "ahead".
-      const { count: servingCount } = await supabase
-          .from("tickets")
-          .select("*", { count: "exact", head: true })
-          .eq("queue_id", queueId)
-          .eq("status", "serving");
-      
-      // 2. Count all people who are 'waiting' and joined BEFORE this ticket.
-      const { count: waitingAhead } = await supabase
-          .from("tickets")
-          .select("*", { count: "exact", head: true })
-          .eq("queue_id", queueId)
-          .eq("status", "waiting")
-          .lt("created_at", ticketCreatedAt);
+        supabase: SupabaseClient,
+        queueId: string,
+        ticketCreatedAt: string
+    ) {
+        
+        const queueConfig = await getQueueConfig(supabase);
+            // Use the config value, defaulting to 5 minutes if not set or config is missing.
+        const dynamicAvgServiceTime = queueConfig?.avg_service_time || 5;
+        
+        // 1. Count the person currently being served (if any).
+        const { count: servingCount } = await supabase
+            .from("tickets")
+            .select("*", { count: "exact", head: true })
+            .eq("queue_id", queueId)
+            .eq("status", "serving");
+        
+        // 2. Count all people who are 'waiting' and joined BEFORE this ticket.
+        const { count: waitingAhead } = await supabase
+            .from("tickets")
+            .select("*", { count: "exact", head: true })
+            .eq("queue_id", queueId)
+            .eq("status", "waiting")
+            .lt("created_at", ticketCreatedAt);
 
-      // 3. Count the total number of people who are waiting (excluding the serving ticket)
-      const { count: totalWaiting } = await supabase
-          .from("tickets")
-          .select("*", { count: "exact", head: true })
-          .eq("queue_id", queueId)
-          .eq("status", "waiting");
-      
-      // Total people ahead = (Serving Count) + (Waiting Tickets Ahead)
-      const peopleAhead = (servingCount || 0) + (waitingAhead || 0);
+        // 3. Count the total number of people who are waiting (excluding the serving ticket)
+        const { count: totalWaiting } = await supabase
+            .from("tickets")
+            .select("*", { count: "exact", head: true })
+            .eq("queue_id", queueId)
+            .eq("status", "waiting");
+        
+        // Total people ahead = (Serving Count) + (Waiting Tickets Ahead)
+        const peopleAhead = (servingCount || 0) + (waitingAhead || 0);
 
-      // The user's position is the number of people ahead PLUS THEMSELVES (+1).
-      const position = peopleAhead + 1;
-      
-      // Total in line = (Serving Count) + (Total Waiting Count)
-      const totalInLine = (servingCount || 0) + (totalWaiting || 0);
-      
-      const waitTime = peopleAhead * AVG_WAIT_TIME_MINS;
-      
-      const serviceTime = new Date(Date.now() + waitTime * 60 * 1000);
-      const serviceAround = serviceTime.toLocaleTimeString([], { 
-          hour: 'numeric', 
-          minute: '2-digit' 
-      });
+        // The user's position is the number of people ahead PLUS THEMSELVES (+1).
+        const position = peopleAhead + 1;
+        
+        // Total in line = (Serving Count) + (Total Waiting Count)
+        const totalInLine = (servingCount || 0) + (totalWaiting || 0);
+        
+        const waitTime = peopleAhead * dynamicAvgServiceTime;
+        
+        const serviceTime = new Date(Date.now() + waitTime * 60 * 1000);
+        const serviceAround = serviceTime.toLocaleTimeString(undefined, { 
+            hour: 'numeric', 
+            minute: '2-digit' 
+        });
 
-      return {
-          position,
-          totalInLine, // This now reflects all active tickets (serving + waiting)
-          estimatedWait: position === 1 ? "Next!" : `~${waitTime} mins`,
-          serviceAround,
-      };
+        return {
+            position,
+            totalInLine, // This now reflects all active tickets (serving + waiting)
+            estimatedWait: position === 1 ? "Next!" : `~${waitTime} mins`,
+            serviceAround,
+        };
 }
 
 export async function joinQueue(

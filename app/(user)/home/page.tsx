@@ -1,4 +1,5 @@
 // src/app/(user)/home/page.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
@@ -150,7 +151,7 @@ export default function UserDashboardPage() {
           {/* Skeleton Card */}
           <Card className="bg-white border-none shadow-lg overflow-hidden rounded-2xl text-center p-8 space-y-6">
             <CardContent className="p-0 space-y-4 flex flex-col items-center">
-              <div className="h-24 w-24 bg-[#E8F3E8] rounded-full opacity-50"></div>
+              <div className="h-24 w-52 bg-[#E8F3E8] rounded-md opacity-50"></div>
               <div className="h-8 w-48 bg-gray-200 rounded-md"></div>
               <div className="h-4 w-64 bg-gray-100 rounded-md"></div>
             </CardContent>
@@ -255,15 +256,6 @@ export default function UserDashboardPage() {
                 </Button>
               </CardFooter>
             </Card>
-
-            {/* Notification */}
-            <div className="mt-4 bg-[#6A9A8B] text-white p-4 rounded-xl text-sm shadow-sm flex items-start gap-3">
-              <svg className="w-5 h-5 shrink-0 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              <div>
-                <p><span className="font-bold">Queue Updates:</span> You've been added to the end of the queue.</p>
-                <p className="text-white/70 text-xs mt-1">Just now</p>
-              </div>
-            </div>
           </>
         ) : (
           // --- VIEW 2: NO TICKET ---

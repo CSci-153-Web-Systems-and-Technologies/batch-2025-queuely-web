@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import Link from "next/link";
@@ -23,53 +24,39 @@ export default function SignupPage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+        e.preventDefault();
+        setIsLoading(true);
+        setErrorMessage(null);
+        setSuccessMessage(null);
 
-    // 1. AUTHENTICATION: Create the login record
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-    });
-
-    if (authError) {
-        setErrorMessage(authError.message);
-        setIsLoading(false);
-        return;
-    }
-
-    // --- PROFILE CREATION ---
-    if (authData.user) {
-    const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-            user_id: authData.user.id,
-            email: authData.user.email,
-            role: 'user', 
-            
-            first_name: 'New', 
-            last_name: 'User', 
-            preferred_name: 'User', 
-            profile_url: null,
+        // 1. AUTHENTICATION: Create the login record
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: email,
+            password: password,
         });
 
-        if (profileError) {
-            console.error("Profile creation failed:", profileError);
-            setErrorMessage("Account created, but profile failed due to missing data. Please try logging in later.");
+        if (authError) {
+            setErrorMessage(authError.message);
             setIsLoading(false);
             return;
         }
-    }
-    
-    // --- SUCCESS LOGIC ---
-    setSuccessMessage(
-        "Success! Check your email to confirm your account and log in."
-    );
-    setEmail("");
-    setPassword("");
-    setIsLoading(false);
+
+        // --- PROFILE CREATION ---
+      if (authData.user) {
+        }
+      
+        // --- SUCCESS LOGIC ---
+        setSuccessMessage(
+            "Success! Check your email to confirm your account and log in."
+      );
+      
+        setEmail("");
+        setPassword("");
+        setIsLoading(false);
+        setTimeout(() => {
+              setIsLoading(false); 
+              router.push('/login'); 
+          }, 1500);
 };
 
   return (
