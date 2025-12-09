@@ -5,7 +5,9 @@ import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CheckCircle, Clock, AlertTriangle, Loader2 } from "lucide-react";
-import { getDashboardStats } from "@/utils/queue-service";
+import { getDashboardStats, getQueueConfig, getWeeklyQueueVolume } from "@/utils/queue-service";
+import { useRouter } from "next/navigation";
+
 import {
   BarChart,
   Bar,
@@ -17,15 +19,10 @@ import {
 } from "recharts";
 
 // 1. Sample data for the Weekly Queue Volume Chart
-const chartData = [
-  { name: "Monday", volume: 180 },
-  { name: "Tuesday", volume: 350 },
-  { name: "Wednesday", volume: 450 },
-  { name: "Thursday", volume: 300 },
-  { name: "Friday", volume: 400 },
-  { name: "Saturday", volume: 320 },
-  { name: "Sunday", volume: 180 },
-];
+interface ChartDataPoint {
+    name: string;
+    volume: number;
+}
 
 interface DashboardStats {
     totalCustomersToday: number;
@@ -38,27 +35,51 @@ export default function DashboardOverviewPage() {
     const supabase = useMemo(() => createClient(), []);
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+    const router = useRouter();
 
     // --- FETCH DATA ---
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchAllData = async () => {
             setIsLoading(true);
+            
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            // 1. Authorization Check (Client-side Fallback)
+            const { data: profile } = await supabase
+                .from('users')
+                .select('role')
+                .eq('user_id', user?.id)
+                .maybeSingle();
+
+            if (!user || profile?.role !== 'admin') {
+                router.push('/home'); // Redirect non-admins
+                return;
+            }
+
             try {
-                // FIX: Call the new helper function
+                // Fetch the queue ID first
+                const queueConfig = await getQueueConfig(supabase);
+
+                // 2. Fetch Dashboard Stats
                 const dashboardStats = await getDashboardStats(supabase);
                 setStats(dashboardStats);
+                
+                // 3. Fetch Weekly Volume Data
+                const volumeData = await getWeeklyQueueVolume(supabase, queueConfig.id);
+                setChartData(volumeData); // <-- SET NEW STATE
+
             } catch (error) {
-                console.error("Error fetching dashboard statistics:", error);
-                // Optionally show a default or zeroed stats card on error
+                console.error("Error fetching dashboard data:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchStats();
-    }, [supabase]);
+        fetchAllData();
+    }, [supabase, router]);
 
     // --- RENDER BLOCKING ---
-    if (isLoading || !stats) {
+    if (isLoading || !stats || chartData.length === 0) {
         return (
             <div className="h-screen flex items-center justify-center">
                 <Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" />
