@@ -25,7 +25,15 @@ export default function UserDashboardPage() {
 
     // Use the helper function instead of raw Supabase queries
     const serviceIdentifier = ticket.queue_id;
-    const metrics = await getQueueMetrics(supabase, serviceIdentifier, ticket.created_at);
+    const ticketId = ticket.ticket_id || ticket.id;
+
+    const metrics = await getQueueMetrics(
+        supabase, 
+        serviceIdentifier, 
+        ticket.created_at,
+        ticketId, // ADDED: Pass the ticket ID
+        ticket.status // ADDED: Pass the ticket status
+    );
 
     setActiveTicket((prev: any) => ({
       ...prev,

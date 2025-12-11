@@ -33,15 +33,23 @@ export default function SettingsPage() {
     const fetchSettings = async () => {
       try {
         const data = await getQueueConfig(supabase);
-        setQueueConfigForm({
-          id: data.id,
-          name: data.name,
-          avg_service_time: data.avg_service_time,
-          maintenance_mode: data.maintenance_mode,
-          max_capacity: data.max_capacity || 0,
-          auto_advance: data.auto_advance || false, 
-          auto_rollback: data.auto_rollback || false,
-        });
+        if (data) { 
+          setQueueConfigForm({
+            id: data.id,
+              name: data.name,
+              avg_service_time: data.avg_service_time,
+              maintenance_mode: data.maintenance_mode,
+              max_capacity: data.max_capacity || 0,
+              auto_advance: data.auto_advance || false, 
+              auto_rollback: data.auto_rollback || false,
+            });
+        } else {
+            // OPTIONAL: Warn the user that config is missing and defaults are used
+            console.warn("Queue configuration row not found. Using default form values.");
+            // If data is null, the form retains its initial useState values, 
+            // but we must manually set the ID to an empty string if it's required for saving later.
+            setQueueConfigForm(prev => ({ ...prev, id: '' }));
+        }
       } catch (error) {
         console.error("Failed to fetch settings:", error);
       } finally {

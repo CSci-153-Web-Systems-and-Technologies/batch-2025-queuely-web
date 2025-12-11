@@ -3,54 +3,68 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
 export async function getQueueMetrics(
-        supabase: SupabaseClient,
-        queueId: string,
-        ticketCreatedAt: string
-    ) {
+    supabase: SupabaseClient,
+    queueId: string,
+    ticketCreatedAt: string,
+    userTicketId: string, 
+    userTicketStatus: string 
+) {
         
-        const queueConfig = await getQueueConfig(supabase);
-        const dynamicAvgServiceTime = queueConfig?.avg_service_time || 5;
-        
-        // 1. Count the person currently being served (if any).
-        const { count: servingCount } = await supabase
-            .from("tickets")
-            .select("*", { count: "exact", head: true })
-            .eq("queue_id", queueId)
-            .eq("status", "serving");
-        
-        // 2. Count all people who are 'waiting' and joined BEFORE this ticket.
-        const { count: waitingAhead } = await supabase
-            .from("tickets")
-            .select("*", { count: "exact", head: true })
-            .eq("queue_id", queueId)
-            .eq("status", "waiting")
-            .lt("created_at", ticketCreatedAt);
+    const queueConfig = await getQueueConfig(supabase);
+    const dynamicAvgServiceTime = queueConfig?.avg_service_time || 5;
+    
+    // 1. Count the person currently being served (excluding the user's own ticket).
+    const { count: servingCount } = await supabase
+        .from("tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .eq("status", "serving")
+        .neq("ticket_id", userTicketId); // Correctly excludes the current user's serving ticket
+    
+    // 2. Count all people who are 'waiting' and joined BEFORE this ticket.
+    const { count: waitingAhead } = await supabase
+        .from("tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .eq("status", "waiting")
+        .lt("created_at", ticketCreatedAt);
 
-        // 3. Count the total number of people who are waiting (excluding the serving ticket)
-        const { count: totalWaiting } = await supabase
-            .from("tickets")
-            .select("*", { count: "exact", head: true })
-            .eq("queue_id", queueId)
-            .eq("status", "waiting");
-        
-        const peopleAhead = (servingCount || 0) + (waitingAhead || 0);
-        const position = peopleAhead + 1;
-        const totalInLine = (servingCount || 0) + (totalWaiting || 0);
-        
-        const waitTime = peopleAhead * dynamicAvgServiceTime;
-        
-        const serviceTime = new Date(Date.now() + waitTime * 60 * 1000);
-        const serviceAround = serviceTime.toLocaleTimeString(undefined, { 
-            hour: 'numeric', 
-            minute: '2-digit' 
-        });
+    // 3. Count the total number of people who are waiting (including the user if they are waiting)
+    const { count: totalWaiting } = await supabase
+        .from("tickets")
+        .select("ticket_id", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .eq("status", "waiting");
 
-        return {
-            position,
-            totalInLine,
-            estimatedWait: position === 1 ? "Next!" : `~${waitTime} mins`,
-            serviceAround,
-        };
+    let peopleAhead = 0;
+
+    if (userTicketStatus === 'serving') {
+        // If the user is currently being served, they are position 1 (0 people ahead)
+        peopleAhead = 0; 
+    } else {
+        // If waiting: count the one currently serving (if any) + all waiting ahead.
+        peopleAhead = (servingCount || 0) + (waitingAhead || 0); 
+    }
+
+    const position = peopleAhead + 1; // 1-based position
+    
+    // Correct calculation for totalInLine: (Others serving) + (Total people waiting) + (1 if the user is serving)
+    const totalInLine = (servingCount || 0) + (totalWaiting || 0) + (userTicketStatus === 'serving' ? 1 : 0);
+    
+    const waitTime = peopleAhead * dynamicAvgServiceTime;
+    
+    const serviceTime = new Date(Date.now() + waitTime * 60 * 1000);
+    const serviceAround = serviceTime.toLocaleTimeString(undefined, { 
+        hour: 'numeric', 
+        minute: '2-digit' 
+    });
+
+    return {
+        position,
+        totalInLine,
+        estimatedWait: peopleAhead === 0 ? "Next!" : `~${waitTime} mins`,
+        serviceAround,
+    };
 }
 
 export async function joinQueue(
@@ -174,7 +188,8 @@ export async function updateTicketStatus(
       .from("tickets")
       .update(updates)
       .eq("ticket_id", ticketId)
-      .select('*', { count: 'exact' });
+      // FIX: Changed to .select(null, ...) to resolve the TypeScript error when only counting.
+      .select('*'); 
 
     if (error) throw error;
     if (count === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);

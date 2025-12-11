@@ -1,5 +1,4 @@
 // src/app/(dashboard)/page.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -96,7 +95,7 @@ export default function DashboardOverviewPage() {
     }, [supabase, router]);
 
     // --- RENDER BLOCKING ---
-    if (isLoading || !stats || chartData.length === 0) {
+    if (isLoading || !stats) {
         return (
             <div className="h-screen flex items-center justify-center">
                 <Loader2 className="h-10 w-10 animate-spin text-[#1B4D3E]" />
