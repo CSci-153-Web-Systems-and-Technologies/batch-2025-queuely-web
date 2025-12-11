@@ -8,6 +8,7 @@ import { Users as UsersIcon, Check, SkipForward, Zap, RefreshCw, Loader2 } from 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveQueue, updateTicketStatus, callNextInLine, getQueueConfig } from "@/utils/queue-service";
+import { cn } from "@/lib/utils";
 
 
 export default function QueueManagementPage() {
@@ -307,7 +308,13 @@ export default function QueueManagementPage() {
                                     queue.map((item) => (
                                         <TableRow 
                                             key={item.ticket_id || item.id}
-                                            className={item.status === 'serving' ? 'bg-yellow-50 hover:bg-yellow-100' : ''}
+                                            className={cn(
+                                                // Current serving highlight
+                                                item.status === 'serving' ? 'bg-yellow-50 hover:bg-yellow-100' : '',
+                                                // NEW: Highlight Priority tickets in the waiting list
+                                                item.status === 'waiting' && item.is_priority ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-500' : ''
+                                                // (You may need to import cn from "@/lib/utils")
+                                            )}
                                         >
                                             <TableCell className="font-medium">{item.ticket_number}</TableCell>
                                             <TableCell>
