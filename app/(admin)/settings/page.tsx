@@ -215,7 +215,7 @@ export default function SettingsPage() {
                     <div className="space-y-0.5">
                         <Label className="text-base font-semibold">Auto-Rollback</Label>
                         <p className="text-sm text-muted-foreground">
-                            Automatically put the customer at the end of the queue if they are a 'no show'.
+                            Automatically put the customer at the end of the queue if they are a no show.
                         </p>
                     </div>
                     <Switch 
