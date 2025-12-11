@@ -19,7 +19,7 @@ export async function getQueueMetrics(
         .select("*", { count: "exact", head: true })
         .eq("queue_id", queueId)
         .eq("status", "serving")
-        .neq("ticket_id", userTicketId); // Correctly excludes the current user's serving ticket
+        .neq("ticket_id", userTicketId); 
     
     // 2. Count all people who are 'waiting' and joined BEFORE this ticket.
     const { count: waitingAhead } = await supabase
@@ -184,15 +184,18 @@ export async function updateTicketStatus(
         updates.created_at = new Date().toISOString();
     }
     
-    const { error, count } = await supabase
+    // FIX: Changed to check data.length instead of relying on the 'count' property
+    // which causes TypeScript conflicts after an update.
+    const { data, error } = await supabase
       .from("tickets")
       .update(updates)
       .eq("ticket_id", ticketId)
-      // FIX: Changed to .select(null, ...) to resolve the TypeScript error when only counting.
+      // Requesting updated rows ensures 'data' is populated if successful
       .select('*'); 
 
     if (error) throw error;
-    if (count === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);
+    // Check data length instead of count
+    if (!data || data.length === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);
     return true;
 }
 
