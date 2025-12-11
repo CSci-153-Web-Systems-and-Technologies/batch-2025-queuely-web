@@ -41,7 +41,6 @@ export default function DashboardOverviewPage() {
 
     // --- FETCH DATA ---
     useEffect(() => {
-<<<<<<< HEAD
       const fetchAllData = async () => {
         setIsLoading(true);
             
@@ -92,42 +91,6 @@ export default function DashboardOverviewPage() {
           } finally {
             setIsLoading(false);
           }
-=======
-        const fetchAllData = async () => {
-            setIsLoading(true);
-            
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            // 1. Authorization Check (Client-side Fallback)
-            const { data: profile } = await supabase
-                .from('users')
-                .select('role')
-                .eq('user_id', user?.id)
-                .maybeSingle();
-
-            if (!user || profile?.role !== 'admin') {
-                router.push('/home'); // Redirect non-admins
-                return;
-            }
-
-            try {
-                // Fetch the queue ID first
-                const queueConfig = await getQueueConfig(supabase);
-
-                // 2. Fetch Dashboard Stats
-                const dashboardStats = await getDashboardStats(supabase);
-                setStats(dashboardStats);
-                
-                // 3. Fetch Weekly Volume Data
-                const volumeData = await getWeeklyQueueVolume(supabase, queueConfig.id);
-                setChartData(volumeData); // <-- SET NEW STATE
-
-            } catch (error) {
-                console.error("Error fetching dashboard data:", error);
-            } finally {
-                setIsLoading(false);
-            }
->>>>>>> origin/develop
         };
         fetchAllData();
     }, [supabase, router]);

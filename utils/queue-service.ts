@@ -152,7 +152,6 @@ export async function getActiveQueue(supabase: SupabaseClient, queueId: string) 
 export async function updateTicketStatus(
     supabase: SupabaseClient,
     ticketId: string,
-<<<<<<< HEAD
     newStatus: 'completed' | 'cancelled' | 'serving' | 'waiting',
     newPriority?: boolean
   ) {
@@ -177,27 +176,6 @@ export async function updateTicketStatus(
       .eq("ticket_id", ticketId)
       .select('*', { count: 'exact' });
 
-=======
-    newStatus: 'completed' | 'cancelled' | 'serving' | 'waiting'
-  ) {
-    const updates: any = { status: newStatus };
-    
-    if (newStatus === 'completed') {
-      updates.completed_at = new Date().toISOString(); 
-    }
-    
-    // NOTE: If status is 'waiting' (for rollback), created_at should be updated too.
-    if (newStatus === 'waiting') {
-        updates.created_at = new Date().toISOString();
-    }
-    
-    const { error, count } = await supabase
-      .from("tickets")
-      .update(updates)
-      .eq("ticket_id", ticketId)
-      .select('*', { count: 'exact' });
-
->>>>>>> origin/develop
     if (error) throw error;
     if (count === 0) throw new Error(`Ticket ${ticketId} not found or already processed.`);
     return true;
@@ -207,7 +185,6 @@ export async function updateTicketStatus(
 export async function callNextInLine(
     supabase: SupabaseClient,
     queueId: string,
-<<<<<<< HEAD
     forceAdvance: boolean = false 
 ) {
     // --- STEP 1: RETRIEVE CONFIGURATION ---
@@ -220,30 +197,13 @@ export async function callNextInLine(
     
     // Check if there is already someone serving.
     const { count: servingCountRaw } = await supabase
-=======
-    // Add an optional flag to override auto_advance (e.g., if admin manually clicks "Call Next")
-    forceAdvance: boolean = false 
-) {
-    // --- STEP 1: RETRIEVE CONFIGURATION ---
-    const config = await getQueueConfig(supabase);
-    const autoAdvanceEnabled = config.auto_advance;
-    
-    // Check if there is already someone serving.
-    const { count: servingCount } = await supabase
->>>>>>> origin/develop
         .from("tickets")
         .select("*", { count: "exact", head: true })
         .eq("queue_id", queueId)
         .eq("status", "serving");
-<<<<<<< HEAD
     
     const servingCount: number = servingCountRaw ?? 0;
 
-=======
-
-    // If someone is already serving AND auto-advance is disabled, we do nothing.
-    // We only proceed if no one is serving OR if auto-advance is on/forced.
->>>>>>> origin/develop
     if (servingCount > 0 && !autoAdvanceEnabled && !forceAdvance) {
         return null;
     }
@@ -254,13 +214,8 @@ export async function callNextInLine(
         .select('ticket_id') 
         .eq('queue_id', queueId)
         .eq('status', 'waiting')
-<<<<<<< HEAD
         .order('is_priority', { ascending: false })
         .order('created_at', { ascending: true })  
-=======
-        .order('is_priority', { ascending: false }) // Priority first
-        .order('created_at', { ascending: true })   // Oldest time second
->>>>>>> origin/develop
         .limit(1);
 
     if (error) throw error;
@@ -446,13 +401,5 @@ export async function getWeeklyQueueVolume(supabase: SupabaseClient, queueId: st
             volume: count || 0,
         });
     }
-<<<<<<< HEAD
     return dataPoints;
 }
-=======
-
-    // Since the loop runs backward (from 6 days ago to today), the dataPoints array 
-    // is already in the correct order for chronological plotting.
-    return dataPoints;
-}
->>>>>>> origin/develop
