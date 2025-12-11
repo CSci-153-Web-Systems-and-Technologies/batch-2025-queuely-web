@@ -99,6 +99,12 @@ export default function QueueManagementPage() {
 
             setActionLoading(true);
             try {
+<<<<<<< HEAD
+=======
+                const currentId = servingTicket?.ticket_id || servingTicket?.id || null;
+
+                await callNextInLine(supabase, queueConfig.id);
+>>>>>>> origin/develop
 
                 await callNextInLine(supabase, queueConfig.id);
                 await fetchQueue(queueConfig.id); 
