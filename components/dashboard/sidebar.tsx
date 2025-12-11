@@ -88,12 +88,15 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
   const handleLogout = async () => {
      const confirmed = window.confirm("Are you sure you want to log out?");
     
-    if (confirmed) {
-      await supabase.auth.signOut();
-      
-      router.push("/");
-      router.refresh();
+    if (!confirmed) {
+      return; // Exit if not confirmed
     }
+
+    // Execution only proceeds here if confirmed is true
+    await supabase.auth.signOut();
+      
+    router.push("/");
+    router.refresh();
   };
 
   if (isLoading) {
