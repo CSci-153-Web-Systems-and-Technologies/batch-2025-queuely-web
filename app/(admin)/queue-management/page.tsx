@@ -1,17 +1,17 @@
-    "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
-    import { useMemo, useState, useEffect, useCallback } from "react";
-    import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-    import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-    import { Loader2, Zap, Users as UsersIcon, Check, SkipForward } from "lucide-react"; // Note: Removed unused icons
-    import { Button } from "@/components/ui/button";
-    import { createClient } from "@/lib/supabase/client";
-    import { getActiveQueue, updateTicketStatus, callNextInLine, getQueueConfig } from "@/utils/queue-service";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Users as UsersIcon, Check, SkipForward, Zap, RefreshCw, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import { getActiveQueue, updateTicketStatus, callNextInLine, getQueueConfig } from "@/utils/queue-service";
 
 
-    export default function QueueManagementPage() {
-        const supabase = useMemo(() => createClient(), []);
-
+export default function QueueManagementPage() {
+    const supabase = useMemo(() => createClient(), []);
         const [queueConfig, setQueueConfig] = useState<any>(null);
         const [queue, setQueue] = useState<any[]>([]);
         const [loading, setLoading] = useState(true);
@@ -33,17 +33,20 @@
             } finally {
                 setLoading(false);
             }
-        }, [supabase]); // Dependencies are clean
+        }, [supabase]);
 
         // --- INITIAL LOAD EFFECT (Runs only once on mount) ---
         useEffect(() => {
             const initAdminData = async () => {
                 // 1. Fetch Global Settings (Primary Service Name)
                 const currentQueueConfig = await getQueueConfig(supabase);
-                setQueueConfig(currentQueueConfig); // This updates the settings state
+                setQueueConfig(currentQueueConfig); 
 
-                // 2. PASS THE NAME: Fetch the initial queue data immediately
-                await fetchQueue(currentQueueConfig.id); 
+                if (currentQueueConfig && currentQueueConfig.id) {
+                    await fetchQueue(currentQueueConfig.id);
+                } else {
+                    console.warn("Queue configuration is missing. Please ensure a row exists in the 'queues' table.");
+                }
             };
 
             initAdminData();
@@ -96,11 +99,10 @@
 
             setActionLoading(true);
             try {
-                const currentId = servingTicket?.ticket_id || servingTicket?.id || null;
 
                 await callNextInLine(supabase, queueConfig.id);
-
                 await fetchQueue(queueConfig.id); 
+
             } catch (error) {
                 console.error("Error calling next ticket:", error);
                 alert("Failed to call next ticket. Check console for details.");
@@ -170,6 +172,32 @@
             } catch (error) {
                 console.error("Error skipping ticket:", error);
                 alert("Failed to skip ticket.");
+            } finally {
+                setActionLoading(false);
+            }
+        };
+    
+        const handleTogglePriority = async (ticket: any) => {
+            const ticketId = ticket.ticket_id || ticket.id;
+            const currentStatus = ticket.status; // e.g., 'waiting'
+            
+            // Determine the NEW priority state: Toggle the current one
+            const newPriorityState = !ticket.is_priority; 
+
+            setActionLoading(true);
+            try {
+                await updateTicketStatus(
+                    supabase, 
+                    ticketId, 
+                    currentStatus, 
+                    newPriorityState // Pass the toggled boolean
+                );
+
+                // Refresh the queue to show the updated status
+                await fetchQueue(queueConfig.id); 
+            } catch (error) {
+                console.error("Error toggling priority:", error);
+                alert("Failed to update ticket priority.");
             } finally {
                 setActionLoading(false);
             }
@@ -269,11 +297,12 @@
                                     <TableHead>Joined</TableHead>
                                     <TableHead>Priority</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {queue.length === 0 ? (
-                                    <TableRow><TableCell colSpan={5} className="text-center py-4 text-gray-500">Queue is empty!</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="text-center py-4 text-gray-500">Queue is empty!</TableCell></TableRow>
                                 ) : (
                                     queue.map((item) => (
                                         <TableRow 
@@ -289,9 +318,13 @@
                                             </TableCell>
                                             <TableCell>
                                                 {item.is_priority ? (
-                                                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600">Yes</span>
+                                                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600">
+                                                        Yes
+                                                    </span>
                                                 ) : (
-                                                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">No</span>
+                                                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                                                        No
+                                                    </span>
                                                 )}
                                             </TableCell>
                                             <TableCell>
@@ -301,6 +334,25 @@
                                                     {item.status}
                                                 </span>
                                             </TableCell>
+                                            <TableCell>
+                                            {item.status === 'waiting' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleTogglePriority(item)}
+                                                    disabled={actionLoading}
+                                                    title={item.is_priority ? "Remove Priority" : "Elevate to Priority"}
+                                                >
+                                                    {item.is_priority ? (
+                                                        // Show 'Undo' or 'Refresh' icon if already prioritized
+                                                        <RefreshCw className="h-4 w-4 text-gray-500" />
+                                                    ) : (
+                                                        // Show 'Zap' or 'Star' icon if not prioritized
+                                                        <Zap className="h-4 w-4 text-red-500" />
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </TableCell>
                                         </TableRow>
                                     ))
                                 )}

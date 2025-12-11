@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
@@ -16,18 +17,13 @@ import { getTicketHistory } from "@/utils/queue-service";
 export default function UserProfilePage() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  
-  // --- STATE ---
-  // Removed the 'loading' state for initial page load
   const [updating, setUpdating] = useState(false);
   const [user, setUser] = useState<any>(null);
-  
-  // Profile Form State - Initialized to empty strings
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
     preferred_name: "",
-    email: "Loading...", // Placeholder while fetching
+    email: "Loading...", 
     avatar_url: ""
   });
 

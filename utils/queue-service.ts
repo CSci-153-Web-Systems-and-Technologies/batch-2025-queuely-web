@@ -9,7 +9,6 @@ export async function getQueueMetrics(
     ) {
         
         const queueConfig = await getQueueConfig(supabase);
-            // Use the config value, defaulting to 5 minutes if not set or config is missing.
         const dynamicAvgServiceTime = queueConfig?.avg_service_time || 5;
         
         // 1. Count the person currently being served (if any).
@@ -34,13 +33,8 @@ export async function getQueueMetrics(
             .eq("queue_id", queueId)
             .eq("status", "waiting");
         
-        // Total people ahead = (Serving Count) + (Waiting Tickets Ahead)
         const peopleAhead = (servingCount || 0) + (waitingAhead || 0);
-
-        // The user's position is the number of people ahead PLUS THEMSELVES (+1).
         const position = peopleAhead + 1;
-        
-        // Total in line = (Serving Count) + (Total Waiting Count)
         const totalInLine = (servingCount || 0) + (totalWaiting || 0);
         
         const waitTime = peopleAhead * dynamicAvgServiceTime;
@@ -53,7 +47,7 @@ export async function getQueueMetrics(
 
         return {
             position,
-            totalInLine, // This now reflects all active tickets (serving + waiting)
+            totalInLine,
             estimatedWait: position === 1 ? "Next!" : `~${waitTime} mins`,
             serviceAround,
         };
@@ -132,7 +126,7 @@ export async function leaveQueue(supabase: SupabaseClient, ticketId: string) {
 }
 
 export function formatTime(dateString: string) {
-  return new Date(dateString).toLocaleTimeString([], {
+  return new Date(dateString).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -155,21 +149,23 @@ export async function getActiveQueue(supabase: SupabaseClient, queueId: string) 
     return data;
 }
 
-/**
- * Generic function to update a ticket's status (used for Complete/Skip).
- */
 export async function updateTicketStatus(
     supabase: SupabaseClient,
     ticketId: string,
-    newStatus: 'completed' | 'cancelled' | 'serving' | 'waiting'
+    newStatus: 'completed' | 'cancelled' | 'serving' | 'waiting',
+    newPriority?: boolean
   ) {
     const updates: any = { status: newStatus };
-    
+
+    if (newPriority !== undefined) {
+        updates.is_priority = newPriority;
+    }
+
     if (newStatus === 'completed') {
       updates.completed_at = new Date().toISOString(); 
+      
     }
     
-    // NOTE: If status is 'waiting' (for rollback), created_at should be updated too.
     if (newStatus === 'waiting') {
         updates.created_at = new Date().toISOString();
     }
@@ -189,22 +185,25 @@ export async function updateTicketStatus(
 export async function callNextInLine(
     supabase: SupabaseClient,
     queueId: string,
-    // Add an optional flag to override auto_advance (e.g., if admin manually clicks "Call Next")
     forceAdvance: boolean = false 
 ) {
     // --- STEP 1: RETRIEVE CONFIGURATION ---
-    const config = await getQueueConfig(supabase);
+   const config = await getQueueConfig(supabase);
+    if (!config) {
+        console.error("Call Next failed: Queue configuration is missing.");
+        return null; 
+    }
     const autoAdvanceEnabled = config.auto_advance;
     
     // Check if there is already someone serving.
-    const { count: servingCount } = await supabase
+    const { count: servingCountRaw } = await supabase
         .from("tickets")
         .select("*", { count: "exact", head: true })
         .eq("queue_id", queueId)
         .eq("status", "serving");
+    
+    const servingCount: number = servingCountRaw ?? 0;
 
-    // If someone is already serving AND auto-advance is disabled, we do nothing.
-    // We only proceed if no one is serving OR if auto-advance is on/forced.
     if (servingCount > 0 && !autoAdvanceEnabled && !forceAdvance) {
         return null;
     }
@@ -215,8 +214,8 @@ export async function callNextInLine(
         .select('ticket_id') 
         .eq('queue_id', queueId)
         .eq('status', 'waiting')
-        .order('is_priority', { ascending: false }) // Priority first
-        .order('created_at', { ascending: true })   // Oldest time second
+        .order('is_priority', { ascending: false })
+        .order('created_at', { ascending: true })  
         .limit(1);
 
     if (error) throw error;
@@ -402,8 +401,5 @@ export async function getWeeklyQueueVolume(supabase: SupabaseClient, queueId: st
             volume: count || 0,
         });
     }
-
-    // Since the loop runs backward (from 6 days ago to today), the dataPoints array 
-    // is already in the correct order for chronological plotting.
     return dataPoints;
 }
