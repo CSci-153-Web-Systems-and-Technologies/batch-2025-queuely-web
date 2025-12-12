@@ -8,6 +8,9 @@ import { Users as UsersIcon, Check, SkipForward, Zap, RefreshCw, Loader2 } from 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveQueue, updateTicketStatus, callNextInLine, getQueueConfig } from "@/utils/queue-service";
+import { Input } from "@/components/ui/input"; 
+import { Label } from "@/components/ui/label"; 
+import { cn } from "@/lib/utils"; 
 
 
 export default function QueueManagementPage() {
@@ -17,13 +20,12 @@ export default function QueueManagementPage() {
         const [loading, setLoading] = useState(true);
         const [actionLoading, setActionLoading] = useState(false);
         const [servingTicket, setServingTicket] = useState<any>(null);
+        const [searchTerm, setSearchTerm] = useState('');
 
         // --- FUNCTION TO FETCH AND UPDATE THE QUEUE DATA ---
-        // FIX: serviceName is now an explicit parameter in the callback signature
         const fetchQueue = useCallback(async (queueId: string) => { 
             setLoading(true);
             try {
-                // FIX: Use the parameter here instead of relying on outer scope
                 const data = await getActiveQueue(supabase, queueId); 
                 setQueue(data);
                 const serving = data.find(t => t.status === 'serving');
@@ -83,7 +85,7 @@ export default function QueueManagementPage() {
                 supabase.removeChannel(settingsChannel);
             };
 
-        }, [supabase, fetchQueue, queueConfig]); // Depends on settings
+        }, [supabase, fetchQueue, queueConfig]);
 
 
         // --- FUNCTIONAL HANDLERS ---
@@ -91,7 +93,6 @@ export default function QueueManagementPage() {
         // 1. Call Next / Start Service
         const handleCallNext = async () => {
             if (!queueConfig || !queueConfig.id) {
-                // Stop action and alert admin if the configuration is invalid or missing
                 alert("System Configuration Error: Please ensure the Queue Service is configured in the Settings tab.");
                 console.error("Attempted to call next ticket before queueConfig.id was loaded or configured.");
                 return; 
@@ -122,12 +123,8 @@ export default function QueueManagementPage() {
                 
                 // --- STEP 2: CHECK AUTO-ADVANCE FLAG ---
                 if (queueConfig.auto_advance) {
-                    // Automatically call the next person in line
-                    // We only need to pass the queueId to callNextInLine now.
                     await callNextInLine(supabase, queueConfig.id);
                 } else {
-                    // If auto-advance is OFF, the service is done, but no one is called.
-                    // We just need to clear the serving ticket display.
                     setServingTicket(null); 
                 }
 
@@ -142,7 +139,7 @@ export default function QueueManagementPage() {
             }
         };
 
-        // 3. Skip/Cancel Current Ticket
+        // 3. Skip/Cancel Current Ticket (FIXED LOGIC)
         const handleSkipTicket = async () => {
             if (!servingTicket || !queueConfig) return alert("No one is currently being served or config is missing.");
             setActionLoading(true);
@@ -152,8 +149,14 @@ export default function QueueManagementPage() {
             try {
                 // --- STEP 1: CHECK AUTO-ROLLBACK FLAG ---
                 if (queueConfig.auto_rollback) {
-                    // Rollback: Put ticket back to the end of the queue
-                    await updateTicketStatus(supabase, ticketId, 'waiting');
+                    // FIX: Set priority to FALSE and explicitly request requeueBack=true.
+                    await updateTicketStatus(
+                        supabase, 
+                        ticketId, 
+                        'waiting', 
+                        false, // <--- EXPLICITLY SET PRIORITY TO FALSE
+                        true // <--- NEW: requeueBack=true to reset created_at
+                    ); 
                     alert(`Ticket ${servingTicket.ticket_number} rolled back to the end of the queue.`);
                 } else {
                     // Standard Skip: Mark as cancelled/removed
@@ -162,8 +165,6 @@ export default function QueueManagementPage() {
                 }
                 
                 // --- STEP 2: ADVANCE THE QUEUE ---
-                // Always call the next ticket after a skip, using forceAdvance=true 
-                // to ignore the auto_advance setting, as an admin explicitly wants the queue to move.
                 await callNextInLine(supabase, queueConfig.id, true);
 
                 // Step 3: Refresh the queue
@@ -191,6 +192,7 @@ export default function QueueManagementPage() {
                     ticketId, 
                     currentStatus, 
                     newPriorityState // Pass the toggled boolean
+                    // NOTE: requeueBack is undefined, so created_at is preserved.
                 );
 
                 // Refresh the queue to show the updated status
@@ -203,6 +205,20 @@ export default function QueueManagementPage() {
             }
         };
         
+        // --- FILTERED QUEUE CALCULATION ---
+        const filteredQueue = useMemo(() => {
+            if (!searchTerm) {
+                return queue;
+            }
+            const lowerCaseSearch = searchTerm.toLowerCase();
+            
+            // Filter by ticket number
+            return queue.filter(ticket => 
+                String(ticket.ticket_number).includes(lowerCaseSearch)
+            );
+        }, [queue, searchTerm]);
+
+
         // --- DISPLAY CALCULATION ---
         const nextInQueue = queue.find(t => t.status === 'waiting')?.ticket_number || '—';
         const totalWaiting = queue.filter(t => t.status === 'waiting').length;
@@ -283,10 +299,22 @@ export default function QueueManagementPage() {
                     </Card>
                 </div>
 
+                {/* Search Bar */}
+                <div className="space-y-2">
+                    <Label htmlFor="ticket-search">Search Queue</Label>
+                    <Input
+                        id="ticket-search"
+                        placeholder="Filter by Ticket Number (e.g., 105)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-[#E8F3E8] text-[#1B4D3E]" 
+                    />
+                </div>
+
                 {/* Current Queue Table */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Current Queue</CardTitle>
+                        <CardTitle>Current Queue ({filteredQueue.length} shown)</CardTitle> 
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -301,13 +329,18 @@ export default function QueueManagementPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {queue.length === 0 ? (
-                                    <TableRow><TableCell colSpan={6} className="text-center py-4 text-gray-500">Queue is empty!</TableCell></TableRow>
+                                {filteredQueue.length === 0 ? (
+                                    <TableRow><TableCell colSpan={6} className="text-center py-4 text-gray-500">
+                                        {searchTerm ? "No matching tickets found." : "Queue is empty!"}
+                                    </TableCell></TableRow>
                                 ) : (
-                                    queue.map((item) => (
+                                    filteredQueue.map((item) => (
                                         <TableRow 
                                             key={item.ticket_id || item.id}
-                                            className={item.status === 'serving' ? 'bg-yellow-50 hover:bg-yellow-100' : ''}
+                                            className={cn(
+                                                item.status === 'serving' ? 'bg-yellow-50 hover:bg-yellow-100' : '',
+                                                item.status === 'waiting' && item.is_priority ? 'bg-red-50/70 hover:bg-red-100/70 border-1 border-red-500' : ''
+                                            )}
                                         >
                                             <TableCell className="font-medium">{item.ticket_number}</TableCell>
                                             <TableCell>
@@ -344,10 +377,8 @@ export default function QueueManagementPage() {
                                                     title={item.is_priority ? "Remove Priority" : "Elevate to Priority"}
                                                 >
                                                     {item.is_priority ? (
-                                                        // Show 'Undo' or 'Refresh' icon if already prioritized
                                                         <RefreshCw className="h-4 w-4 text-gray-500" />
                                                     ) : (
-                                                        // Show 'Zap' or 'Star' icon if not prioritized
                                                         <Zap className="h-4 w-4 text-red-500" />
                                                     )}
                                                 </Button>

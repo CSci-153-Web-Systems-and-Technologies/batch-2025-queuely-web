@@ -1,11 +1,12 @@
-// /src/middleware.ts (Final Recommended Code)
+// /src/middleware.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr'; // Necessary import
+import { createServerClient } from '@supabase/ssr'; // This function should now be recognized
 
 // Define admin paths (Keep this list accurate)
-const ADMIN_PATHS = ['/dashboard', '/queue-management', '/settings', '/admin'];
+const ADMIN_PATHS = ['/dashboard', '/queue-management', '/settings', '/admin-profile'];
 
 
 // The core logic to fetch the role, simplified for reliability
@@ -17,6 +18,7 @@ async function getUserRole(request: NextRequest): Promise<string | null> {
         {
             cookies: {
                 get: (name: string) => request.cookies.get(name)?.value,
+                // These are no-ops in this specific helper function
                 set: () => {}, 
                 remove: () => {},
             },
@@ -44,44 +46,46 @@ async function getUserRole(request: NextRequest): Promise<string | null> {
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     
-    // 1. Setup client to handle cookies in the response
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get: (name: string) => request.cookies.get(name)?.value,
-                // Crucial: This ensures set/remove actions are applied to the request's cookies
-                set: (name: string, value: string, options: any) => {
-                    request.cookies.set({ name, value, ...options });
-                },
-                remove: (name: string, options: any) => {
-                    request.cookies.set({ name, value: '', ...options });
-                },
-            },
-        }
-    );
-
-    // 2. Refresh the session. This is the crucial step that writes cookies 
-    // to the request's cookie store if needed.
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    
-    // 3. Define the response object
+    // 1. Define the response object, which will be mutated by cookie operations
     const response = NextResponse.next({
         request: {
             headers: request.headers,
         },
     });
 
+    // 2. Setup client to handle cookies in the request (get) and response (set/remove)
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                get: (name: string) => request.cookies.get(name)?.value,
+                // CRUCIAL: Set/remove operations apply changes directly to the response headers
+                set: (name: string, value: string, options: any) => {
+                    response.cookies.set({ name, value, ...options });
+                },
+                remove: (name: string, options: any) => {
+                    response.cookies.set({ name, value: '', ...options });
+                },
+            },
+        }
+    );
 
+    // 3. Refresh the session. This reads the incoming cookie and writes the fresh session 
+    // and cookie updates (if any) directly to the `response` object's cookies store (Step 2).
+    await supabase.auth.getSession();
+    
+    
     // 4. Handle authorization if accessing an Admin route
     const isAdminPath = ADMIN_PATHS.some(path => pathname.startsWith(path));
 
     if (isAdminPath) {
         
+        // Use getUser() to ensure the session is valid
+        const { data: { user } } = await supabase.auth.getUser();
+
         // If unauthenticated, redirect to login
-        if (!session) {
+        if (!user) {
             return NextResponse.redirect(new URL('/login', request.url));
         }
 
@@ -94,18 +98,7 @@ export async function middleware(request: NextRequest) {
         }
     }
     
-    // 5. Apply updated cookies to the final response
-    // This step forwards the updated session cookies from the request to the response
-    // headers, making them available immediately to the client.
-    if (session) {
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                // Manually set the session to update the cookies in the response
-                supabase.auth.setSession(session);
-            }
-        });
-    }
-
+    // 5. Return the response, which now contains the updated session cookies
     return response; 
 }
 

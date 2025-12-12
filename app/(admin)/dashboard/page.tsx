@@ -187,6 +187,14 @@ export default function DashboardOverviewPage() {
                 data={chartData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
+                <defs>
+                  <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                    {/* Darker green at the top (0%) */}
+                    <stop offset="5%" stopColor="#1B4D3E" stopOpacity={0.8}/>
+                    {/* Lighter color/opacity at the bottom (100%) */}
+                    <stop offset="95%" stopColor="#1B4D3E" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="name"
@@ -208,7 +216,7 @@ export default function DashboardOverviewPage() {
                   contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
                 />
                 {/* The actual bars, colored to match the theme */}
-                <Bar dataKey="volume" fill="#1B4D3E" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="volume" fill="url(#colorVolume)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
