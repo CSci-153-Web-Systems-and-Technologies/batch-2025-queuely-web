@@ -307,7 +307,7 @@ export default function QueueManagementPage() {
                         placeholder="Filter by Ticket Number (e.g., 105)"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="bg-white" 
+                        className="bg-[#E8F3E8] text-[#1B4D3E]" 
                     />
                 </div>
 
