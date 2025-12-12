@@ -254,9 +254,10 @@ export default function UserDashboardPage() {
 
               <CardFooter className="p-6 pt-0 pb-10">
                 <Button
-                  onClick={handleLeaveQueue}
-                  disabled={loading}
-                  className="w-full h-14 text-lg font-bold text-[#1B4D3E] bg-[#F4E08F] hover:bg-[#EACF6A] rounded-xl shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                    onClick={handleLeaveQueue}
+                    disabled={loading}
+                    variant="accent-gold"
+                    className="w-full h-14 text-lg font-bold" 
                 >
                   {loading ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Leaving...</>

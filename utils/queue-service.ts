@@ -157,7 +157,7 @@ export async function getActiveQueue(supabase: SupabaseClient, queueId: string) 
       .eq('queue_id', queueId) 
       .in('status', ['waiting', 'serving'])
       .order('is_priority', { ascending: false })
-      .order('created_at', { ascending: true });
+      .order('ticket_number', { ascending: true }); // FIX: Sorting by ticket_number
     
     if (error) throw error;
     return data;
@@ -167,7 +167,8 @@ export async function updateTicketStatus(
     supabase: SupabaseClient,
     ticketId: string,
     newStatus: 'completed' | 'cancelled' | 'serving' | 'waiting',
-    newPriority?: boolean
+    newPriority?: boolean,
+    requeueBack?: boolean
   ) {
     const updates: any = { status: newStatus };
 
@@ -180,7 +181,8 @@ export async function updateTicketStatus(
       
     }
     
-    if (newStatus === 'waiting') {
+    // FIX: Only update timestamp if it's an explicit requeue-to-back action
+    if (newStatus === 'waiting' && requeueBack) {
         updates.created_at = new Date().toISOString();
     }
     
@@ -233,7 +235,7 @@ export async function callNextInLine(
         .eq('queue_id', queueId)
         .eq('status', 'waiting')
         .order('is_priority', { ascending: false })
-        .order('created_at', { ascending: true })  
+        .order('ticket_number', { ascending: true }) // FIX: Sorting by ticket_number
         .limit(1);
 
     if (error) throw error;

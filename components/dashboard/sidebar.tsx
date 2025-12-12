@@ -208,7 +208,7 @@ export function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) {
                 : "flex-col items-center space-y-4" // Collapsed: Column, centered, with vertical spacing
         )}>
           <Link 
-              href="/profile" 
+              href="/admin-profile" 
               className={cn("flex items-center transition-all duration-300 group cursor-pointer",
                 isSidebarOpen ? "space-x-3" : "justify-center flex-col space-y-4",
                 isSidebarOpen ? "hover:bg-white/10 p-2 rounded-lg -m-2" : "p-0"
