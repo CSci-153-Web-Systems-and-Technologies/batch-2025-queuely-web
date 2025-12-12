@@ -31,25 +31,28 @@ Before you begin, ensure you have:
 ## 🛠️ Installation
 
 1. **Clone the repository**
-   `bash
-git clone https://github.com/YourRepoName/batch-2025-queuely-web.git
-cd batch-2025-queuely-web
-`
+
+   ```bash
+   git clone https://github.com/YourRepoName/batch-2025-queuely-web.git
+   cd batch-2025-queuely-web
+   ```
 
 2. **Install dependencies**
-   `bash
+
+   ```bash
    npm install
    # or
    yarn install
    # or
    pnpm install
-   `
+   ```
+
 3. **Environment Setup**
    Create a `.env.local` file in the root directory with the following variables:
-   `env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-`
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 4. **Supabase Setup**
 
 Queuely requires three main tables: users, queues, and tickets.
@@ -163,16 +166,16 @@ USING (true);
 
 ### For Admin/Staff:
 
-1. **Log In**: Use an account that has been manually set to role: 'admin' in the public.users table.
-2. **Configure**: Visit /dashboard/settings to set avg_service_time, max_capacity, and queue rules.
-3. **Manage Queue**: Access the Queue Management panel to process customers and adjust priorities.
-4. **View Analytics**: Monitor performance via the main /dashboard page.
+1.  **Log In**: Use an account that has been manually set to role: 'admin' in the public.users table.
+2.  **Configure**: Visit /dashboard/settings to set avg_service_time, max_capacity, and queue rules.
+3.  **Manage Queue**: Access the Queue Management panel to process customers and adjust priorities.
+4.  **View Analytics**: Monitor performance via the main /dashboard page.
 
 ### For Users:
 
-1. **Access Session**: Scan QR code or visit the session URL
-2. **Submit Questions**: Enter your name (optional) and question
-3. **Real-time Feedback**: See confirmation when questions are submitted
+1.  **Scan QR Code**: Scan the Standard or Priority QR code URL to be directed to the login page.
+2.  **Log In/Sign Up**: Authenticate. The priority flag is preserved and automatically triggers the queue join action.
+3.  **Queue Status**: View live updates of position and estimated wait time on the /home page.
 
 ## 📁 Project Structure
 
@@ -196,11 +199,10 @@ batch-2025-queuely-web/
 
 ### Environment Variables
 
-| Variable                        | Description                     | Required |
-| ------------------------------- | ------------------------------- | -------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Your Supabase project URL       | Yes      |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anonymous key     | Yes      |
-| `NEXT_PUBLIC_BASE_URL`          | Base URL for QR code generation | Yes      |
+| Variable                        | Description                                    | Required |
+| ------------------------------- | ---------------------------------------------- | -------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | https://glvjvonjubmnwsrsaeaw.supabase.co       | Yes      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sb_publishable_XyFAidzUvg6jQv0Jk5Xorg_ysS2n73U | Yes      |
 
 ## 🚀 Deployment
 
