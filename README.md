@@ -31,90 +31,115 @@ Before you begin, ensure you have:
 ## 🛠️ Installation
 
 1. **Clone the repository**
-   `bash
-git clone https://github.com/YourRepoName/batch-2025-queuely-web.git
-cd batch-2025-queuely-web
-`
+
+   ```bash
+   git clone https://github.com/YourRepoName/batch-2025-queuely-web.git
+   cd batch-2025-queuely-web
+   ```
 
 2. **Install dependencies**
-   `bash
+
+   ```bash
    npm install
    # or
    yarn install
    # or
    pnpm install
-   `
+   ```
+
 3. **Environment Setup**
    Create a `.env.local` file in the root directory with the following variables:
-   `env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-`
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 4. **Supabase Setup**
 
 Queuely requires three main tables: users, queues, and tickets.
 
-**Users Table:**
-`sql
-    CREATE TABLE public.users (
-    user_id UUID REFERENCES auth.users(id) NOT NULL PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user', -- 'user' or 'admin'
-    first_name TEXT,
-    last_name TEXT,
-    preferred_name TEXT,
-    avatar_url TEXT
-    );
-    `
+1. Table Definitions
+   This block creates the three main tables: users, queues, and tickets.
 
-**Queues Table:**
-`sql
-    CREATE TABLE public.queues (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name TEXT NOT NULL DEFAULT 'Main Service Queue',
-    avg_service_time INTEGER NOT NULL DEFAULT 5, -- Used for metric calculation
-    max_capacity INTEGER,
-    maintenance_mode BOOLEAN DEFAULT FALSE,
-    auto_advance BOOLEAN DEFAULT FALSE, -- New: Auto-call next person
-    auto_rollback BOOLEAN DEFAULT FALSE -- New: Put skipped person last
-    );
-    `
-**Queues Table:**
-`sql
-        CREATE TABLE public.tickets (
-    ticket_id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    ticket_number SERIAL, -- Auto-incrementing number for user display
-    user_id UUID REFERENCES auth.users(id),
-    queue_id UUID REFERENCES public.queues(id) ON DELETE CASCADE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting', 'serving', 'completed', 'cancelled'
-    is_priority BOOLEAN DEFAULT FALSE
-    );
-    `
+```SQL
 
-**Enable Row Level Security (RLS):**
-Enable RLS on all three custom tables (users, queues, tickets) and implement policies, including the critical policy for self-profile creation during sign-up:
+-- =======================================================================
+-- 1. USERS TABLE (User Profiles & Roles)
+-- =======================================================================
+CREATE TABLE public.users (
+user_id UUID REFERENCES auth.users(id) NOT NULL PRIMARY KEY,
+email TEXT UNIQUE NOT NULL,
+role TEXT NOT NULL DEFAULT 'user', -- Defines access level: 'user' or 'admin'
+first_name TEXT,
+last_name TEXT,
+preferred_name TEXT,
+avatar_url TEXT
+);
 
-`sql
-    CREATE POLICY "allow_user_self_insert"
-    ON "public"."users"
-    AS PERMISSIVE
-    FOR INSERT
-    TO public
-    WITH CHECK (auth.uid() = user_id);
-    `
+-- =======================================================================
+-- 2. QUEUES TABLE (Global Configuration)
+-- =======================================================================
+-- Note: This table should typically only contain one row.
+CREATE TABLE public.queues (
+id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+name TEXT NOT NULL DEFAULT 'Main Service Queue',
+avg_service_time INTEGER NOT NULL DEFAULT 5, -- Used for metric calculation
+max_capacity INTEGER,
+maintenance_mode BOOLEAN DEFAULT FALSE,
+auto_advance BOOLEAN DEFAULT FALSE, -- Auto-call next person upon service completion
+auto_rollback BOOLEAN DEFAULT FALSE -- Put skipped person back to waiting
+);
 
-5. **Configure Google OAuth (Optional)**
-   Insert the initial configuration row into the queues table manually to ensure your system has a base queueId and settings to read on startup.
-   `sql
-INSERT INTO public.queues (name, avg_service_time) VALUES ('Customer Service Desk', 5);
-`
+-- =======================================================================
+-- 3. TICKETS TABLE (Queue Data)
+-- =======================================================================
+CREATE TABLE public.tickets (
+ticket_id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ticket_number SERIAL, -- Auto-incrementing, user-facing number
+user_id UUID REFERENCES auth.users(id),
+queue_id UUID REFERENCES public.queues(id) ON DELETE CASCADE NOT NULL,
+created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+completed_at TIMESTAMP WITH TIME ZONE,
+status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting', 'serving', 'completed', 'cancelled'
+is_priority BOOLEAN DEFAULT FALSE
+); 2. Initial Configuration
+You must run this once to create the core configuration row, which your application relies on for the queue_id.
+```
+
+```SQL
+
+-- Insert the initial required configuration row
+INSERT INTO public.queues (name, avg_service_time) VALUES ('Customer Service Desk', 5); 3. Row Level Security (RLS) Policies
+These policies are critical for application security and functionality.
+
+SQL
+
+-- Enable RLS on custom tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.queues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+
+-- CRITICAL POLICY: Allow new users to create their own profile row
+CREATE POLICY "allow_user_self_insert"
+ON "public"."users"
+AS PERMISSIVE
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- RLS for Queues (Admin/Auth users can read the global config)
+CREATE POLICY "authenticated_can_read_queues"
+ON "public"."queues"
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (true);
+```
 
 ## 🏃‍♂️ Running the Application
 
 1. **Start the development server**
-   `bash
+
+   ```bash
    npm run dev
 
    # or
@@ -124,26 +149,33 @@ INSERT INTO public.queues (name, avg_service_time) VALUES ('Customer Service Des
    # or
 
    pnpm dev
-   `
+   ```
 
 2. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+
+   1. Start the development server
+
+      ```Bash
+
+      npm run dev
+      ```
+
+   2. Open your browser Navigate to http://localhost:3000
 
 ## 📖 Usage
 
 ### For Admin/Staff:
 
-1. **Create an Account**: Sign up using Google OAuth or email/password
-2. **Share QR Code**: Display the generated QR code for students to scan
-3. **Manage Questions**: View incoming questions in real-time
-4. **Control Session**: Open/close sessions and delete when finished
-5. **View Analytics**: Check participant statistics and export data
+1.  **Log In**: Use an account that has been manually set to role: 'admin' in the public.users table.
+2.  **Configure**: Visit /dashboard/settings to set avg_service_time, max_capacity, and queue rules.
+3.  **Manage Queue**: Access the Queue Management panel to process customers and adjust priorities.
+4.  **View Analytics**: Monitor performance via the main /dashboard page.
 
 ### For Users:
 
-1. **Access Session**: Scan QR code or visit the session URL
-2. **Submit Questions**: Enter your name (optional) and question
-3. **Real-time Feedback**: See confirmation when questions are submitted
+1.  **Scan QR Code**: Scan the Standard or Priority QR code URL to be directed to the login page.
+2.  **Log In/Sign Up**: Authenticate. The priority flag is preserved and automatically triggers the queue join action.
+3.  **Queue Status**: View live updates of position and estimated wait time on the /home page.
 
 ## 📁 Project Structure
 
@@ -167,11 +199,10 @@ batch-2025-queuely-web/
 
 ### Environment Variables
 
-| Variable                        | Description                     | Required |
-| ------------------------------- | ------------------------------- | -------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Your Supabase project URL       | Yes      |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anonymous key     | Yes      |
-| `NEXT_PUBLIC_BASE_URL`          | Base URL for QR code generation | Yes      |
+| Variable                        | Description                                    | Required |
+| ------------------------------- | ---------------------------------------------- | -------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | https://glvjvonjubmnwsrsaeaw.supabase.co       | Yes      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sb_publishable_XyFAidzUvg6jQv0Jk5Xorg_ysS2n73U | Yes      |
 
 ## 🚀 Deployment
 
@@ -184,14 +215,6 @@ batch-2025-queuely-web/
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/KaelNierras/class-qa-board)
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit your changes: `git commit -m 'Add some feature'`
-4. Push to the branch: `git push origin feature-name`
-5. Submit a pull request
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -202,11 +225,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Supabase](https://supabase.com/) for the backend infrastructure
 - [shadcn/ui](https://ui.shadcn.com/) for the UI components
 - [Tailwind CSS](https://tailwindcss.com/) for styling
-
-## 📞 Support
-
-If you encounter any issues or have questions, please [open an issue](https://github.com/KaelNierras/class-qa-board/issues) on GitHub.
-
----
-
-Made with ❤️ for educators and students everywhere.
