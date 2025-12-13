@@ -157,7 +157,7 @@ export async function getActiveQueue(supabase: SupabaseClient, queueId: string) 
       .eq('queue_id', queueId) 
       .in('status', ['waiting', 'serving'])
       .order('is_priority', { ascending: false })
-      .order('ticket_number', { ascending: true }); // FIX: Sorting by ticket_number
+      .order('created_at', { ascending: true }); // FIX: Sorting by created_at to honor requeue logic
     
     if (error) throw error;
     return data;
@@ -235,7 +235,7 @@ export async function callNextInLine(
         .eq('queue_id', queueId)
         .eq('status', 'waiting')
         .order('is_priority', { ascending: false })
-        .order('ticket_number', { ascending: true }) // FIX: Sorting by ticket_number
+        .order('created_at', { ascending: true }) // FIX: Sorting by created_at to pick the oldest waiting ticket
         .limit(1);
 
     if (error) throw error;
