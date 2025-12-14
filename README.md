@@ -199,10 +199,10 @@ batch-2025-queuely-web/
 
 ### Environment Variables
 
-| Variable                        | Description                                    | Required |
-| ------------------------------- | ---------------------------------------------- | -------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | https://glvjvonjubmnwsrsaeaw.supabase.co       | Yes      |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sb_publishable_XyFAidzUvg6jQv0Jk5Xorg_ysS2n73U | Yes      |
+| Variable                        | Description              | Required |
+| ------------------------------- | ------------------------ | -------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | your_supabase_project_ur | Yes      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | your_supabase_anon_key   | Yes      |
 
 ## 🚀 Deployment
 
