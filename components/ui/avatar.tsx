@@ -18,7 +18,7 @@ function Avatar({
       )}
       {...props}
     />
-  )
+  )   
 }
 
 function AvatarImage({
